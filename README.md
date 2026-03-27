@@ -1,4 +1,4 @@
-# Test Fin de JIRAMA Charge Manager
+# JIRAMA Charge Manager
 
 A Pen created on CodePen.
 
