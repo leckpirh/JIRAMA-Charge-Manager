@@ -20,6 +20,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+        console.log("ERREUR: " + msg + " à " + url + ":" + line);
+        alert("Erreur détectée: " + msg);
+        return false;
+    };
+    console.log("Site chargé - Version: " + new Date().toLocaleString());
+  </script>
     <div class="stars"></div>
     <div class="twinkling"></div>
     
@@ -952,7 +960,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="app.js"></script>
+    <script src="script.js"></script>
   <!-- Input file caché pour l'import -->
 <input type="file" id="importFile" accept=".json" style="display: none;">
 </body>
