@@ -49,10 +49,10 @@ let lastSyncDate = null;
 
 let currentUser = null;
 let users = [
-    { id: 1, username: 'Admin', password: 'ad0123', role: 'admin', name: 'Administrateur' },
+    { id: 1, username: 'admin', password: 'jcm0146!', role: 'admin', name: 'Administrateur' },
     { id: 2, username: 'rakoto', password: 'rakoto123', role: 'user', name: 'Rakoto Jean' },
     { id: 3, username: 'raso', password: 'raso123', role: 'user', name: 'Raso Marie' },
-    { id: 4, username: 'votre_nom', password: 'votre_mdp', role: 'admin', name: 'Votre Nom' }
+    { id: 4, username: 'ferdinand', password: 'Ferdinand0146', role: 'admin', name: 'Ferdinand R.' }
 ];
 
 // ========================================
