@@ -53,8 +53,8 @@ let users = [
     { id: 2, username: 'rakoto', password: 'rakoto123', role: 'user', name: 'Rakoto Jean', email: 'rakoto@email.com', personId: 1 },
     { id: 3, username: 'raso', password: 'raso123', role: 'user', name: 'Raso Marie', email: 'marie@email.com', personId: 2 },
     { id: 4, username: 'ferdinand', password: 'ferdinand0146', role: 'admin', name: 'Ferdinand R.', email: 'ferdinandp25la.sesame@gmail.com', personId: 3 },
-    { id: 5, username: 'votre_nom', password: 'votre_mdp', role: 'admin', name: 'Votre Nom', email : 'votre.mail', personId: },
-    { id: 4, username: 'votre_nom', password: 'votre_mdp', role: 'user', name: 'Votre Nom', email : 'votre.mail', personId: }
+    { id: 5, username: 'votre_nom', password: 'votre_mdp', role: 'admin', name: 'Votre Nom' },
+    { id: 4, username: 'votre_nom', password: 'votre_mdp', role: 'user', name: 'Votre Nom' }
 ];
 
 // ========================================
