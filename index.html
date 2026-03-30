@@ -23,6 +23,12 @@
     <!-- Google API -->
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
+<!-- Ajoutez dans la section <head> -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00d4ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JIRAMA CM">
 </head>
 <body>
     <div class="stars"></div>
@@ -418,6 +424,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="script.js"></script>
+<!-- Ajoutez avant la fermeture de </body> -->
+<script>
+// Enregistrement du service worker pour PWA
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Service Worker enregistré', reg))
+        .catch(err => console.error('Erreur Service Worker', err));
+}
+</script>
 </body>
 </html>
     <script type="module" src="./script.js"></script>
