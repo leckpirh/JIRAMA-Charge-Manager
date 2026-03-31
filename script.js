@@ -1897,6 +1897,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateForecast();
     checkAuth();
     initFaqAccordion();
+    initCloudStorage();
 });
 
 window.onclick = function(event) {
@@ -1921,3 +1922,424 @@ window.onclick = function(event) {
     if (event.target === guestModalEl && guestModalEl) closeGuestModal();
     if (event.target === balanceModalEl && balanceModalEl) closeBalanceModal();
 };
+
+// ========================================
+// FONCTIONS MANQUANTES À AJOUTER À LA FIN DU FICHIER
+// ========================================
+
+// ========================================
+// INDICATEUR DE CONNEXION
+// ========================================
+
+function updateConnectionStatus() {
+    const statusDiv = document.getElementById('connectionStatus');
+    if (!statusDiv) return;
+    
+    if (navigator.onLine) {
+        statusDiv.className = 'connection-status online';
+        statusDiv.innerHTML = '<i class="fas fa-wifi"></i> Connecté - Données synchronisées';
+        
+        setTimeout(() => {
+            if (statusDiv.className === 'connection-status online') {
+                statusDiv.style.opacity = '0';
+                setTimeout(() => {
+                    if (statusDiv.className === 'connection-status online') {
+                        statusDiv.style.display = 'none';
+                        statusDiv.style.opacity = '1';
+                    }
+                }, 500);
+            }
+        }, 3000);
+        
+        statusDiv.style.display = 'block';
+    } else {
+        statusDiv.className = 'connection-status offline';
+        statusDiv.innerHTML = '<i class="fas fa-plug"></i> Mode hors ligne - Modifications en attente de synchronisation';
+        statusDiv.style.display = 'block';
+    }
+}
+
+// ========================================
+// GESTION DU WORKER
+// ========================================
+
+let calculationWorker = null;
+
+function initWorker() {
+    try {
+        if (window.Worker) {
+            calculationWorker = new Worker('worker.js');
+            console.log('✅ Worker initialisé');
+            
+            calculationWorker.addEventListener('message', function(e) {
+                const result = e.data;
+                switch(result.type) {
+                    case 'chargesResult':
+                        console.log('✅ Charges calculées par le worker');
+                        updateBillingWithWorkerResult(result.data);
+                        break;
+                    case 'forecastResult':
+                        console.log('✅ Prévisions calculées par le worker');
+                        updateForecastWithWorkerResult(result.data);
+                        break;
+                    case 'reportResult':
+                        console.log('✅ Rapport généré par le worker');
+                        displayWorkerReport(result.data);
+                        break;
+                    case 'trendsResult':
+                        console.log('✅ Tendances calculées par le worker');
+                        updateTrendsDisplay(result.data);
+                        break;
+                }
+            });
+            
+            calculationWorker.addEventListener('error', function(e) {
+                console.error('❌ Erreur worker:', e);
+                showNotification('Erreur de calcul, veuillez réessayer', 'error');
+            });
+        } else {
+            console.warn('⚠️ Les Web Workers ne sont pas supportés par ce navigateur');
+        }
+    } catch (error) {
+        console.error("Erreur initWorker:", error);
+    }
+}
+
+function calculateChargesWithWorker() {
+    if (calculationWorker) {
+        showLoadingSpinner();
+        calculationWorker.postMessage({
+            type: 'calculateCharges',
+            persons: persons,
+            appliances: appliances,
+            pricePerKwh: actualPricePerKwh || 550
+        });
+    } else {
+        const charges = calculateElectricityCharges();
+        updateBillingWithWorkerResult(charges);
+    }
+}
+
+function updateBillingWithWorkerResult(charges) {
+    hideLoadingSpinner();
+    const container = document.getElementById('billingDetails');
+    if (container) {
+        const total = charges.reduce((sum, c) => sum + c.total, 0);
+        container.innerHTML = `
+            <table class="billing-table">
+                <thead>
+                    <tr>
+                        <th>Colocataire</th>
+                        <th>Montant (Ar)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${charges.map(c => `
+                        <tr>
+                            <td><strong>${escapeHtml(c.personName)}</strong></td>
+                            <td class="amount">${c.total.toFixed(0)} Ar</td>
+                        </tr>
+                    `).join('')}
+                    <tr class="total-row">
+                        <td><strong>TOTAL</strong></td>
+                        <td class="amount"><strong>${total.toFixed(0)} Ar</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+}
+
+function showLoadingSpinner() {
+    let spinner = document.getElementById('workerSpinner');
+    if (!spinner) {
+        spinner = document.createElement('div');
+        spinner.id = 'workerSpinner';
+        spinner.innerHTML = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                        background: rgba(0,0,0,0.8); padding: 20px 30px; border-radius: 15px; 
+                        z-index: 10000; text-align: center;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                <p style="margin-top: 10px;">Calcul en cours...</p>
+            </div>
+        `;
+        document.body.appendChild(spinner);
+    }
+    spinner.style.display = 'flex';
+}
+
+function hideLoadingSpinner() {
+    const spinner = document.getElementById('workerSpinner');
+    if (spinner) spinner.style.display = 'none';
+}
+
+function updateForecastWithWorkerResult(data) {
+    console.log("Mise à jour des prévisions:", data);
+}
+
+function displayWorkerReport(data) {
+    console.log("Affichage du rapport:", data);
+}
+
+function updateTrendsDisplay(data) {
+    console.log("Mise à jour des tendances:", data);
+}
+
+// ========================================
+// LAZY LOADING
+// ========================================
+
+const lazyModules = {
+    budget: { loaded: false, load: () => import('./modules/budget.js') },
+    excel: { loaded: false, load: () => import('./modules/excelExport.js') },
+    scan: { loaded: false, load: () => import('./modules/scan.js') },
+    advancedCharts: { loaded: false, load: () => import('./modules/advancedCharts.js') },
+    reports: { loaded: false, load: () => import('./modules/reports.js') }
+};
+
+const loadedModules = {};
+
+async function loadModule(moduleName) {
+    if (!lazyModules[moduleName]) {
+        console.warn(`⚠️ Module ${moduleName} non trouvé`);
+        return null;
+    }
+    if (loadedModules[moduleName]) return loadedModules[moduleName];
+    console.log(`🔄 Chargement du module ${moduleName}...`);
+    showModuleLoading(moduleName);
+    try {
+        const module = await lazyModules[moduleName].load();
+        loadedModules[moduleName] = module;
+        console.log(`✅ Module ${moduleName} chargé avec succès`);
+        hideModuleLoading();
+        return module;
+    } catch (error) {
+        console.error(`❌ Erreur chargement ${moduleName}:`, error);
+        hideModuleLoading();
+        showNotification(`Erreur de chargement: ${moduleName}`, 'error');
+        return null;
+    }
+}
+
+let loadingTimeout = null;
+
+function showModuleLoading(moduleName) {
+    let loader = document.getElementById('moduleLoader');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'moduleLoader';
+        loader.innerHTML = `
+            <div style="position: fixed; bottom: 20px; right: 20px; 
+                        background: linear-gradient(135deg, #00d4ff, #0099cc);
+                        padding: 12px 20px; border-radius: 50px;
+                        z-index: 10000; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                        display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Chargement...</span>
+            </div>
+        `;
+        document.body.appendChild(loader);
+    }
+    loader.style.display = 'flex';
+    if (loadingTimeout) clearTimeout(loadingTimeout);
+    loadingTimeout = setTimeout(() => hideModuleLoading(), 5000);
+}
+
+function hideModuleLoading() {
+    const loader = document.getElementById('moduleLoader');
+    if (loader) loader.style.display = 'none';
+    if (loadingTimeout) clearTimeout(loadingTimeout);
+}
+
+// ========================================
+// FONCTIONS DE SCAN CORRIGÉES (VERSION SÉCURISÉE)
+// ========================================
+
+// Correction de la fonction processImage qui manquait
+function processImage(file) {
+    const preview = document.getElementById('scanPreview');
+    if (!preview) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) { 
+        preview.innerHTML = `<img src="${e.target.result}" class="scan-preview" alt="Facture scannée" style="max-width: 100%; margin-top: 15px;">`; 
+        setTimeout(() => simulateOCR(), 1500); 
+    };
+    reader.onerror = function() {
+        alert("Erreur lors de la lecture du fichier");
+    };
+    reader.readAsDataURL(file);
+}
+
+// Version sécurisée de simulateOCR
+function simulateOCR() {
+    try {
+        const detectedData = { 
+            elecAmount: Math.floor(Math.random() * 100000) + 20000, 
+            elecKwh: Math.floor(Math.random() * 200) + 50, 
+            waterAmount: Math.floor(Math.random() * 50000) + 10000, 
+            waterM3: Math.floor(Math.random() * 30) + 5 
+        };
+        
+        const elecSpan = document.getElementById('detectedElec');
+        const kwhSpan = document.getElementById('detectedKwh');
+        const waterSpan = document.getElementById('detectedWater');
+        const m3Span = document.getElementById('detectedM3');
+        const resultDiv = document.getElementById('scanResult');
+        
+        if (elecSpan) elecSpan.textContent = detectedData.elecAmount.toFixed(0) + ' Ar';
+        if (kwhSpan) kwhSpan.textContent = detectedData.elecKwh + ' kWh';
+        if (waterSpan) waterSpan.textContent = detectedData.waterAmount.toFixed(0) + ' Ar';
+        if (m3Span) m3Span.textContent = detectedData.waterM3 + ' m³';
+        if (resultDiv) resultDiv.style.display = 'block';
+        
+        window.tempScannedData = detectedData;
+    } catch (error) {
+        console.error("Erreur simulateOCR:", error);
+    }
+}
+
+// Version sécurisée de applyDetectedValues
+function applyDetectedValues() {
+    try {
+        if (window.tempScannedData) {
+            const elecAmountInput = document.getElementById('elecBillAmount');
+            const elecConsInput = document.getElementById('elecConsumption');
+            const waterAmountInput = document.getElementById('waterBillAmount');
+            const waterConsInput = document.getElementById('waterConsumption');
+            
+            if (elecAmountInput) elecAmountInput.value = window.tempScannedData.elecAmount;
+            if (elecConsInput) elecConsInput.value = window.tempScannedData.elecKwh;
+            if (waterAmountInput) waterAmountInput.value = window.tempScannedData.waterAmount;
+            if (waterConsInput) waterConsInput.value = window.tempScannedData.waterM3;
+            
+            calculateActualPrices();
+            showNotification('Valeurs appliquées avec succès !', 'success');
+            closeScanModal();
+            window.tempScannedData = null;
+        } else {
+            alert("Aucune donnée scannée à appliquer");
+        }
+    } catch (error) {
+        console.error("Erreur applyDetectedValues:", error);
+        alert("Erreur lors de l'application des valeurs");
+    }
+}
+
+// ========================================
+// INITIALISATION SUPPLÉMENTAIRE
+// ========================================
+
+// Initialiser le worker au chargement
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        initWorker();
+        updateConnectionStatus();
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+    });
+} else {
+    initWorker();
+    updateConnectionStatus();
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
+}
+
+// Exposer les fonctions supplémentaires
+window.processImage = processImage;
+window.simulateOCR = simulateOCR;
+window.applyDetectedValues = applyDetectedValues;
+window.updateConnectionStatus = updateConnectionStatus;
+window.initWorker = initWorker;
+window.calculateChargesWithWorker = calculateChargesWithWorker;
+
+// ========================================
+// FONCTIONS DE LIAISON AVEC LE CLOUD
+// ========================================
+
+// Sauvegarder dans le cloud
+async function saveToCloud() {
+    if (!cloudStorage.isSignedIn) {
+        showNotification('Veuillez vous connecter à Google Drive d\'abord', 'info');
+        await cloudStorage.signIn();
+        return;
+    }
+    
+    const data = {
+        persons: persons,
+        appliances: appliances,
+        commonExpenses: commonExpenses,
+        evolutionData: evolutionData,
+        history: history,
+        settings: {
+            elecBillAmount,
+            waterBillAmount,
+            elecConsumption,
+            waterConsumption,
+            elecMethod,
+            waterMethod,
+            elecTranchesEnabled,
+            waterTranchesEnabled,
+            electricityTranches,
+            waterTranches
+        }
+    };
+    
+    await cloudStorage.saveData(data);
+}
+
+// Restaurer depuis le cloud
+async function restoreFromCloud() {
+    const restoredData = await cloudStorage.restoreData();
+    
+    if (restoredData) {
+        // Restaurer les données
+        persons = restoredData.persons || [];
+        appliances = restoredData.appliances || [];
+        commonExpenses = restoredData.commonExpenses || [];
+        evolutionData = restoredData.evolutionData || [];
+        history = restoredData.history || [];
+        
+        if (restoredData.settings) {
+            elecBillAmount = restoredData.settings.elecBillAmount || 0;
+            waterBillAmount = restoredData.settings.waterBillAmount || 0;
+            elecConsumption = restoredData.settings.elecConsumption || 0;
+            waterConsumption = restoredData.settings.waterConsumption || 0;
+            elecMethod = restoredData.settings.elecMethod || 'basedOnBill';
+            waterMethod = restoredData.settings.waterMethod || 'equitable';
+            elecTranchesEnabled = restoredData.settings.elecTranchesEnabled || false;
+            waterTranchesEnabled = restoredData.settings.waterTranchesEnabled || false;
+            electricityTranches = restoredData.settings.electricityTranches || [];
+            waterTranches = restoredData.settings.waterTranches || [];
+        }
+        
+        // Sauvegarder en local
+        saveData();
+        
+        // Rafraîchir l'interface
+        updatePersonsList();
+        updateAppliancesList();
+        updateDashboard();
+        updateBilling();
+        updateHistory();
+        updateExpensesList();
+        updateEvolutionChart();
+        updateWidgets();
+        loadSettings();
+        
+        showNotification('Données restaurées avec succès !', 'success');
+    }
+}
+
+// Initialiser le cloud storage au chargement
+async function initCloudStorage() {
+    await cloudStorage.init();
+    
+    // Vérifier si l'utilisateur est déjà connecté
+    if (cloudStorage.isSignedIn) {
+        cloudStorage.updateUIAfterLogin();
+    }
+}
+
+// Appeler dans le DOMContentLoaded
+// Ajoutez cette ligne : initCloudStorage();
