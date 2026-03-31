@@ -47,6 +47,8 @@ let gapiAccessToken = null;
 let autoSyncEnabled = false;
 let lastSyncDate = null;
 
+let calculationWorker = null;
+
 let currentUser = null;
 let users = [
     { id: 1, username: 'admin', password: 'jcm0146!', role: 'admin', name: 'Administrateur' },
@@ -1964,3 +1966,277 @@ window.addEventListener('offline', updateConnectionStatus);
 
 // Vérifier l'état initial
 updateConnectionStatus();
+
+// ========================================
+// GESTION DU WORKER
+// ========================================
+// Initialiser le worker
+function initWorker() {
+    if (window.Worker) {
+        calculationWorker = new Worker('worker.js');
+        console.log('✅ Worker initialisé');
+        
+        // Écouter les résultats du worker
+        calculationWorker.addEventListener('message', function(e) {
+            const result = e.data;
+            
+            switch(result.type) {
+                case 'chargesResult':
+                    console.log('✅ Charges calculées par le worker');
+                    updateBillingWithWorkerResult(result.data);
+                    break;
+                    
+                case 'forecastResult':
+                    console.log('✅ Prévisions calculées par le worker');
+                    updateForecastWithWorkerResult(result.data);
+                    break;
+                    
+                case 'reportResult':
+                    console.log('✅ Rapport généré par le worker');
+                    displayWorkerReport(result.data);
+                    break;
+                    
+                case 'trendsResult':
+                    console.log('✅ Tendances calculées par le worker');
+                    updateTrendsDisplay(result.data);
+                    break;
+            }
+        });
+        
+        // Écouter les erreurs
+        calculationWorker.addEventListener('error', function(e) {
+            console.error('❌ Erreur worker:', e);
+            showNotification('Erreur de calcul, veuillez réessayer', 'error');
+        });
+        
+    } else {
+        console.warn('⚠️ Les Web Workers ne sont pas supportés par ce navigateur');
+    }
+}
+
+// Utiliser le worker pour calculer les charges
+function calculateChargesWithWorker() {
+    if (calculationWorker) {
+        showLoadingSpinner();
+        
+        calculationWorker.postMessage({
+            type: 'calculateCharges',
+            persons: persons,
+            appliances: appliances,
+            pricePerKwh: actualPricePerKwh || 550
+        });
+    } else {
+        // Fallback si worker non disponible
+        const charges = calculateElectricityCharges();
+        updateBillingWithWorkerResult(charges);
+    }
+}
+
+function updateBillingWithWorkerResult(charges) {
+    hideLoadingSpinner();
+    
+    // Mettre à jour l'interface avec les résultats
+    const container = document.getElementById('billingDetails');
+    if (container) {
+        const total = charges.reduce((sum, c) => sum + c.total, 0);
+        container.innerHTML = `
+            <table class="billing-table">
+                <thead>
+                    <tr>
+                        <th>Colocataire</th>
+                        <th>Montant (Ar)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${charges.map(c => `
+                        <tr>
+                            <td><strong>${escapeHtml(c.personName)}</strong></td>
+                            <td class="amount">${c.total.toFixed(0)} Ar</td>
+                        </tr>
+                    `).join('')}
+                    <tr class="total-row">
+                        <td><strong>TOTAL</strong></td>
+                        <td class="amount"><strong>${total.toFixed(0)} Ar</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+}
+
+function showLoadingSpinner() {
+    let spinner = document.getElementById('workerSpinner');
+    if (!spinner) {
+        spinner = document.createElement('div');
+        spinner.id = 'workerSpinner';
+        spinner.innerHTML = `
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                        background: rgba(0,0,0,0.8); padding: 20px 30px; border-radius: 15px; 
+                        z-index: 10000; text-align: center;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                <p style="margin-top: 10px;">Calcul en cours...</p>
+            </div>
+        `;
+        document.body.appendChild(spinner);
+    }
+    spinner.style.display = 'flex';
+}
+
+function hideLoadingSpinner() {
+    const spinner = document.getElementById('workerSpinner');
+    if (spinner) spinner.style.display = 'none';
+}
+
+// Initialiser le worker au chargement
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWorker);
+} else {
+    initWorker();
+}
+
+// ========================================
+// LAZY LOADING - Chargement à la demande
+// ========================================
+
+// Définition des modules à charger dynamiquement
+const lazyModules = {
+    // Module de budget
+    budget: {
+        loaded: false,
+        load: () => import('./modules/budget.js')
+    },
+    // Module d'export Excel
+    excel: {
+        loaded: false,
+        load: () => import('./modules/excelExport.js')
+    },
+    // Module de scan
+    scan: {
+        loaded: false,
+        load: () => import('./modules/scan.js')
+    },
+    // Module de graphiques avancés
+    advancedCharts: {
+        loaded: false,
+        load: () => import('./modules/advancedCharts.js')
+    },
+    // Module de rapports
+    reports: {
+        loaded: false,
+        load: () => import('./modules/reports.js')
+    }
+};
+
+// Cache des modules chargés
+const loadedModules = {};
+
+// Fonction pour charger un module
+async function loadModule(moduleName) {
+    if (!lazyModules[moduleName]) {
+        console.warn(`⚠️ Module ${moduleName} non trouvé`);
+        return null;
+    }
+    
+    if (loadedModules[moduleName]) {
+        console.log(`📦 Module ${moduleName} déjà chargé`);
+        return loadedModules[moduleName];
+    }
+    
+    console.log(`🔄 Chargement du module ${moduleName}...`);
+    
+    // Afficher un indicateur de chargement
+    showModuleLoading(moduleName);
+    
+    try {
+        const module = await lazyModules[moduleName].load();
+        loadedModules[moduleName] = module;
+        console.log(`✅ Module ${moduleName} chargé avec succès`);
+        hideModuleLoading();
+        return module;
+    } catch (error) {
+        console.error(`❌ Erreur chargement ${moduleName}:`, error);
+        hideModuleLoading();
+        showNotification(`Erreur de chargement: ${moduleName}`, 'error');
+        return null;
+    }
+}
+
+// Indicateur de chargement spécifique
+let loadingTimeout = null;
+
+function showModuleLoading(moduleName) {
+    let loader = document.getElementById('moduleLoader');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'moduleLoader';
+        loader.innerHTML = `
+            <div style="position: fixed; bottom: 20px; right: 20px; 
+                        background: linear-gradient(135deg, #00d4ff, #0099cc);
+                        padding: 12px 20px; border-radius: 50px;
+                        z-index: 10000; color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                        display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Chargement...</span>
+            </div>
+        `;
+        document.body.appendChild(loader);
+    }
+    loader.style.display = 'flex';
+    
+    // Auto-hide après 5 secondes (en cas d'erreur)
+    if (loadingTimeout) clearTimeout(loadingTimeout);
+    loadingTimeout = setTimeout(() => hideModuleLoading(), 5000);
+}
+
+function hideModuleLoading() {
+    const loader = document.getElementById('moduleLoader');
+    if (loader) loader.style.display = 'none';
+    if (loadingTimeout) clearTimeout(loadingTimeout);
+}
+
+// ========================================
+// FONCTIONS UTILISANT LE LAZY LOADING
+// ========================================
+
+// Remplacer les fonctions existantes par des versions lazy
+
+async function showBudgetSimulatorLazy() {
+    const budgetModule = await loadModule('budget');
+    if (budgetModule && budgetModule.showSimulator) {
+        budgetModule.showSimulator();
+    } else {
+        // Fallback à la fonction existante
+        if (typeof window.showBudgetSimulator === 'function') {
+            window.showBudgetSimulator();
+        }
+    }
+}
+
+async function exportToExcelLazy() {
+    const excelModule = await loadModule('excel');
+    if (excelModule && excelModule.exportToExcel) {
+        excelModule.exportToExcel();
+    } else {
+        // Fallback à la fonction existante
+        if (typeof window.exportToExcel === 'function') {
+            window.exportToExcel();
+        }
+    }
+}
+
+async function openScanModalLazy() {
+    const scanModule = await loadModule('scan');
+    if (scanModule && scanModule.openScanModal) {
+        scanModule.openScanModal();
+    } else {
+        // Fallback à la fonction existante
+        if (typeof window.openScanModal === 'function') {
+            window.openScanModal();
+        }
+    }
+}
+
+// Remplacer les fonctions existantes
+window.showBudgetSimulator = showBudgetSimulatorLazy;
+window.exportToExcel = exportToExcelLazy;
+window.openScanModal = openScanModalLazy;
