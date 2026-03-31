@@ -5148,3 +5148,332 @@ a:not(.social-link):not(.footer-links a):hover {
 .connection-status i {
     margin-right: 8px;
 }
+
+/* ======================================== */
+/* ACCORDÉON DES PARAMÈTRES */
+/* ======================================== */
+
+.settings-accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-accordion-item {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.settings-accordion-item:hover {
+    border-color: rgba(0, 212, 255, 0.5);
+}
+
+.settings-accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 24px;
+    cursor: pointer;
+    background: rgba(0, 212, 255, 0.05);
+    transition: background 0.2s;
+}
+
+.settings-accordion-header:hover {
+    background: rgba(0, 212, 255, 0.1);
+}
+
+.settings-accordion-header i:first-child {
+    color: #00d4ff;
+    font-size: 20px;
+    width: 28px;
+}
+
+.settings-accordion-header span {
+    flex: 1;
+    font-weight: 600;
+    color: white;
+    font-size: 16px;
+}
+
+.settings-accordion-header i:last-child {
+    color: #00d4ff;
+    transition: transform 0.3s ease;
+    font-size: 14px;
+}
+
+.settings-accordion-item.active .settings-accordion-header i:last-child {
+    transform: rotate(180deg);
+}
+
+.settings-accordion-content {
+    display: none;
+    padding: 20px 24px;
+    border-top: 1px solid rgba(0, 212, 255, 0.2);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.settings-accordion-item.active .settings-accordion-content {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+/* Grille pour les cartes dans l'accordéon */
+.settings-grid-accordion {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 20px;
+}
+
+.settings-single-card {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+/* Animation */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Info message */
+.info-message {
+    background: rgba(0, 212, 255, 0.1);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.info-message i {
+    color: #00d4ff;
+    font-size: 16px;
+}
+
+.info-message small {
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.4;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .settings-accordion-header {
+        padding: 14px 18px;
+    }
+    
+    .settings-accordion-header span {
+        font-size: 14px;
+    }
+    
+    .settings-accordion-content {
+        padding: 15px;
+    }
+    
+    .settings-grid-accordion {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .settings-single-card {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-accordion-header {
+        padding: 12px 15px;
+    }
+    
+    .settings-accordion-header i:first-child {
+        font-size: 18px;
+        width: 24px;
+    }
+    
+    .settings-accordion-header span {
+        font-size: 13px;
+    }
+}
+
+/* ======================================== */
+/* LISTE DES UTILISATEURS - STYLE AMÉLIORÉ */
+/* ======================================== */
+
+/* Conteneur de la liste des utilisateurs */
+#usersListPreview {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px;
+}
+
+/* Élément utilisateur individuel */
+.user-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    margin: 6px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    transition: all 0.2s;
+    border: 1px solid rgba(0, 212, 255, 0.15);
+}
+
+.user-item:hover {
+    background: rgba(0, 212, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.3);
+}
+
+/* Informations de l'utilisateur */
+.user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #00d4ff;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.user-username {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+.user-role {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(0, 212, 255, 0.2);
+    color: #00d4ff;
+}
+
+.user-email {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.user-email i {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Bouton de réinitialisation - STYLE COMPACT */
+.btn-reset-password {
+    background: rgba(255, 107, 107, 0.15);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    color: #ff6b6b;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-reset-password i {
+    font-size: 11px;
+}
+
+.btn-reset-password:hover {
+    background: #ff6b6b;
+    color: white;
+    transform: translateY(-1px);
+    border-color: transparent;
+}
+
+.btn-reset-password:active {
+    transform: translateY(0);
+}
+
+/* Style pour le bouton supprimer (si utilisé) */
+.btn-delete-user {
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+    color: #ff6b6b;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.btn-delete-user:hover {
+    background: #ff6b6b;
+    color: white;
+}
+
+/* Actions groupées */
+.user-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Scrollbar personnalisée pour la liste */
+#usersListPreview::-webkit-scrollbar {
+    width: 4px;
+}
+
+#usersListPreview::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+#usersListPreview::-webkit-scrollbar-thumb {
+    background: #00d4ff;
+    border-radius: 4px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .user-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
+    }
+    
+    .user-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .btn-reset-password {
+        padding: 5px 10px;
+        font-size: 10px;
+    }
+}
