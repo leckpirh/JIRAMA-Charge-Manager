@@ -11,8 +11,9 @@ const FILES_TO_CACHE = [
     '/',
     '/index.html',
     '/style.css',
-    '/app.js',
+    '/style.js',
     '/manifest.json'
+    '/offline.html' 
 ];
 
 // ========================================
@@ -100,13 +101,11 @@ self.addEventListener('fetch', event => {
                     return networkResponse;
                 });
             })
-            .catch(() => {
-                // En cas d'échec (hors ligne), on peut retourner une page d'erreur
-                console.log('⚠️ [SW] Hors ligne, pas de cache pour:', url.pathname);
-                // Retourner une réponse personnalisée pour les pages manquantes
-                return new Response('Page non disponible hors ligne', { status: 404 });
-            })
-    );
+// Dans la partie fetch, modifiez le catch
+.catch(() => {
+    console.log('⚠️ [SW] Hors ligne, retour de la page d\'erreur');
+    return caches.match('/offline.html');
+});
 });
 
 // ========================================
