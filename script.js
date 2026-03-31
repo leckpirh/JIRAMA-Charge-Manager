@@ -315,10 +315,30 @@ function updatePersonSelect() {
     if (select) select.innerHTML = persons.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
 }
 
+// ========================================
+// METTRE À JOUR LA LISTE DES PERSONNES
+// ========================================
+
 function updatePersonsList() {
     const container = document.getElementById('personsList');
-    if (!container) return;
-    if (persons.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun colocataire enregistré</p>'; return; }
+    if (!container) {
+        console.error("❌ Conteneur personsList non trouvé");
+        return;
+    }
+    
+    console.log(`🔄 Mise à jour de la liste des personnes: ${persons.length} personnes`);
+    
+    if (persons.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                <i class="fas fa-users" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+                Aucun colocataire enregistré<br>
+                <small>Cliquez sur "Ajouter un colocataire" pour commencer</small>
+            </div>
+        `;
+        return;
+    }
+    
     container.innerHTML = persons.map(person => `
         <div class="person-card">
             <h3><i class="fas fa-user-circle"></i> ${escapeHtml(person.name)}</h3>
@@ -326,11 +346,16 @@ function updatePersonsList() {
             <p><i class="fas fa-phone"></i> ${escapeHtml(person.phone || 'Non renseigné')}</p>
             <p><i class="fas fa-chart-line"></i> Présence: ${person.coefficient * 100}%</p>
             <div class="card-actions">
-                <button class="btn-icon edit" onclick="showPersonModal(${person.id})"><i class="fas fa-edit"></i> Modifier</button>
-                <button class="btn-icon delete" onclick="deletePerson(${person.id})"><i class="fas fa-trash"></i> Supprimer</button>
+                <button class="btn-icon edit" onclick="showPersonModal(${person.id})">
+                    <i class="fas fa-edit"></i> Modifier
+                </button>
+                <button class="btn-icon delete" onclick="deletePerson(${person.id})">
+                    <i class="fas fa-trash"></i> Supprimer
+                </button>
             </div>
         </div>
     `).join('');
+    
     updatePersonSelect();
 }
 
@@ -358,63 +383,111 @@ function showPersonModal(personId = null) {
     modal.style.display = 'block';
 }
 
-function closePersonModal() { document.getElementById('personModal').style.display = 'none'; }
+// ========================================
+// SAUVEGARDER UNE PERSONNE - VERSION CORRIGÉE
+// ========================================
 
 function savePerson() {
-    const id = document.getElementById('personId').value;
-    const personData = {
-        id: id ? parseInt(id) : Date.now(),
-        name: document.getElementById('personName').value,
-        email: document.getElementById('personEmail').value,
-        phone: document.getElementById('personPhone').value,
-        coefficient: parseFloat(document.getElementById('personCoefficientSlider').value)
-    };
+    console.log("🔍 savePerson appelée");
     
-    if (!personData.name) {
+    const id = document.getElementById('personId').value;
+    const name = document.getElementById('personName').value;
+    const email = document.getElementById('personEmail').value;
+    const phone = document.getElementById('personPhone').value;
+    const coefficient = parseFloat(document.getElementById('personCoefficientSlider').value);
+    
+    // Validation
+    if (!name) {
         showNotification('Veuillez entrer un nom', 'error');
+        console.log("❌ Nom manquant");
         return;
     }
     
+    console.log(`📝 Sauvegarde personne: ${name}, ID: ${id || 'nouveau'}`);
+    
+    const personData = {
+        id: id ? parseInt(id) : Date.now(),
+        name: name,
+        email: email,
+        phone: phone,
+        coefficient: coefficient
+    };
+    
     if (id) {
+        // Modification d'une personne existante
         const index = persons.findIndex(p => p.id === parseInt(id));
-        persons[index] = personData;
-        showNotification('Colocataire modifié avec succès', 'success');
+        if (index !== -1) {
+            persons[index] = personData;
+            showNotification('Colocataire modifié avec succès', 'success');
+            console.log(`✅ Personne modifiée: ${name}`);
+        } else {
+            console.error("❌ Personne non trouvée pour modification");
+        }
     } else {
+        // Ajout d'une nouvelle personne
         persons.push(personData);
+        showNotification('Colocataire ajouté avec succès', 'success');
+        console.log(`✅ Nouvelle personne ajoutée: ${name}`);
         
-        // Créer automatiquement un compte utilisateur pour le nouveau colocataire
-        const username = personData.name.toLowerCase().replace(/\s/g, '');
-        const defaultPassword = 'jirama123';
-        
-        // Vérifier si l'utilisateur n'existe pas déjà
-        const userExists = users.find(u => u.username === username);
-        if (!userExists && personData.email) {
+        // Créer un compte utilisateur automatiquement si email fourni
+        if (email) {
+            const username = name.toLowerCase().replace(/\s/g, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            let finalUsername = username;
+            let counter = 1;
+            while (users.find(u => u.username === finalUsername)) {
+                finalUsername = username + counter;
+                counter++;
+            }
+            
             users.push({
                 id: users.length + 1,
-                username: username,
-                password: defaultPassword,
+                username: finalUsername,
+                password: 'jirama123',
                 role: 'user',
-                name: personData.name,
-                email: personData.email,
+                name: name,
+                email: email,
                 personId: personData.id
             });
-            showNotification(`Compte créé pour ${personData.name} (mot de passe: ${defaultPassword})`, 'success');
+            showNotification(`Compte créé pour ${name} (nom d'utilisateur: ${finalUsername}, mot de passe: jirama123)`, 'success');
+            if (typeof updateUsersListPreview === 'function') updateUsersListPreview();
         }
-        
-        showNotification('Colocataire ajouté avec succès', 'success');
     }
     
+    // Sauvegarder les données
     saveData();
+    
+    // Mettre à jour toutes les interfaces
     updatePersonsList();
+    updatePersonSelect();
     updateDashboard();
     updateBilling();
     updateEmailList();
-    updateUsersList();
+    
+    // Forcer le rafraîchissement du tableau de facturation
+    if (typeof updateBilling === 'function') {
+        updateBilling();
+    }
+    
+    // Fermer le modal
     closePersonModal();
+    
+    console.log(`✅ Personne sauvegardée, total: ${persons.length} colocataires`);
 }
 
+// ========================================
+// SUPPRIMER UNE PERSONNE
+// ========================================
+
 function deletePerson(id) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette personne ?')) {
+    console.log(`🔍 deletePerson appelé, ID: ${id}`);
+    
+    const person = persons.find(p => p.id === id);
+    if (!person) {
+        console.error(`❌ Personne avec ID ${id} non trouvée`);
+        return;
+    }
+    
+    if (confirm(`Êtes-vous sûr de vouloir supprimer ${person.name} ?\nLes appareils qui lui sont assignés seront également supprimés.`)) {
         persons = persons.filter(p => p.id !== id);
         appliances = appliances.filter(a => a.personId !== id);
         saveData();
@@ -423,7 +496,8 @@ function deletePerson(id) {
         updateDashboard();
         updateBilling();
         updateEmailList();
-        showNotification('Colocataire supprimé', 'success');
+        showNotification(`Colocataire "${person.name}" supprimé`, 'success');
+        console.log(`✅ Personne supprimée: ${person.name}`);
     }
 }
 
@@ -431,34 +505,87 @@ function deletePerson(id) {
 // APPAREILS
 // ========================================
 
+// ========================================
+// METTRE À JOUR LA LISTE DES APPAREILS
+// ========================================
+
 function updateAppliancesList() {
     const container = document.getElementById('appliancesList');
-    if (!container) return;
-    if (appliances.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun appareil enregistré</p>'; return; }
+    if (!container) {
+        console.error("❌ Conteneur appliancesList non trouvé");
+        return;
+    }
+    
+    console.log(`🔄 Mise à jour de la liste des appareils: ${appliances.length} appareils`);
+    
+    if (appliances.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                <i class="fas fa-plug" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+                Aucun appareil enregistré<br>
+                <small>Cliquez sur "Ajouter un appareil" pour commencer</small>
+            </div>
+        `;
+        return;
+    }
+    
     container.innerHTML = appliances.map(appliance => {
         const consumption = appliance.consumption.toFixed(2);
         const cost = calculateElectricityCost(appliance.consumption).toFixed(0);
         const person = appliance.personId ? persons.find(p => p.id === appliance.personId) : null;
-        return `<div class="appliance-card">
-            <h3><i class="fas fa-plug"></i> ${escapeHtml(appliance.name)}</h3>
-            <p><i class="fas fa-bolt"></i> Puissance: ${appliance.power} W</p>
-            <p><i class="fas fa-clock"></i> ${appliance.hoursPerDay}h/jour, ${appliance.daysPerMonth} jours/mois</p>
-            <p><i class="fas fa-chart-line"></i> Consommation: ${consumption} kWh/mois</p>
-            <p><i class="fas fa-euro-sign"></i> Coût: ${cost} Ar</p>
-            <p><i class="fas fa-tag"></i> Type: ${appliance.type === 'individual' ? 'Individuel' : 'Partagé'}</p>
-            ${person ? `<p><i class="fas fa-user"></i> Assigné à: ${escapeHtml(person.name)}</p>` : ''}
-            <div class="card-actions">
-                <button class="btn-icon edit" onclick="showApplianceModal(${appliance.id})"><i class="fas fa-edit"></i> Modifier</button>
-                <button class="btn-icon delete" onclick="deleteAppliance(${appliance.id})"><i class="fas fa-trash"></i> Supprimer</button>
+        
+        // Catégorie avec icône
+        const categoryIcons = {
+            chauffage: '🔥',
+            cuisson: '🍳',
+            multimedia: '📺',
+            electromenager: '🧺',
+            eclairage: '💡',
+            autre: '🔌'
+        };
+        const categoryIcon = categoryIcons[appliance.category] || '🔌';
+        
+        return `
+            <div class="appliance-card">
+                <h3><i class="fas fa-plug"></i> ${escapeHtml(appliance.name)}</h3>
+                <p><i class="fas fa-bolt"></i> Puissance: ${appliance.power} W</p>
+                <p><i class="fas fa-clock"></i> ${appliance.hoursPerDay}h/jour, ${appliance.daysPerMonth} jours/mois</p>
+                <p><i class="fas fa-chart-line"></i> Consommation: ${consumption} kWh/mois</p>
+                <p><i class="fas fa-euro-sign"></i> Coût: ${cost} Ar</p>
+                <p><i class="fas fa-tag"></i> Type: ${appliance.type === 'individual' ? '👤 Individuel' : '👥 Partagé'}</p>
+                <p><i class="fas fa-category"></i> ${categoryIcon} ${appliance.category}</p>
+                ${person ? `<p><i class="fas fa-user"></i> Assigné à: ${escapeHtml(person.name)}</p>` : ''}
+                <div class="card-actions">
+                    <button class="btn-icon edit" onclick="showApplianceModal(${appliance.id})">
+                        <i class="fas fa-edit"></i> Modifier
+                    </button>
+                    <button class="btn-icon delete" onclick="deleteAppliance(${appliance.id})">
+                        <i class="fas fa-trash"></i> Supprimer
+                    </button>
+                </div>
             </div>
-        </div>`;
+        `;
     }).join('');
 }
 
+// ========================================
+// AFFICHER LE MODAL APPAREIL
+// ========================================
+
 function showApplianceModal(applianceId = null) {
+    console.log(`🔍 showApplianceModal appelé, ID: ${applianceId}`);
+    
     const modal = document.getElementById('applianceModal');
     const title = document.getElementById('applianceModalTitle');
+    
+    if (!modal) {
+        console.error("❌ Modal appareil non trouvé");
+        return;
+    }
+    
+    // Mettre à jour la liste des personnes dans le select
     updatePersonSelect();
+    
     if (applianceId !== null) {
         const appliance = appliances.find(a => a.id === applianceId);
         if (appliance) {
@@ -471,61 +598,153 @@ function showApplianceModal(applianceId = null) {
             document.getElementById('applianceType').value = appliance.type;
             document.getElementById('appliancePersonId').value = appliance.personId || '';
             document.getElementById('applianceCategory').value = appliance.category;
+            
             const personSelectGroup = document.getElementById('personSelectGroup');
-            if (personSelectGroup) personSelectGroup.style.display = appliance.type === 'individual' ? 'block' : 'none';
-            setTimeout(initConsumptionPreview, 100);
+            if (personSelectGroup) {
+                personSelectGroup.style.display = appliance.type === 'individual' ? 'block' : 'none';
+            }
+            
+            // Mettre à jour l'aperçu de consommation
+            setTimeout(() => {
+                if (typeof initConsumptionPreview === 'function') {
+                    initConsumptionPreview();
+                }
+            }, 100);
+            
+            console.log(`📝 Édition de l'appareil: ${appliance.name}`);
+        } else {
+            console.error(`❌ Appareil avec ID ${applianceId} non trouvé`);
         }
     } else {
         title.innerHTML = '<i class="fas fa-plus-circle"></i> Ajouter un appareil';
         document.getElementById('applianceForm').reset();
         document.getElementById('applianceId').value = '';
         document.getElementById('applianceType').value = 'individual';
+        document.getElementById('applianceCategory').value = 'electromenager';
+        
         const personSelectGroup = document.getElementById('personSelectGroup');
-        if (personSelectGroup) personSelectGroup.style.display = 'block';
-        setTimeout(initConsumptionPreview, 100);
+        if (personSelectGroup) {
+            personSelectGroup.style.display = 'block';
+        }
+        
+        // Réinitialiser l'aperçu
+        const previewSpan = document.getElementById('consumptionPreview');
+        if (previewSpan) {
+            previewSpan.textContent = '0 kWh/mois';
+        }
+        
+        console.log("📝 Ajout d'un nouvel appareil");
     }
+    
     modal.style.display = 'block';
 }
-
 function closeApplianceModal() { document.getElementById('applianceModal').style.display = 'none'; }
 
+// ========================================
+// SAUVEGARDER UN APPAREIL - VERSION CORRIGÉE
+// ========================================
+
 function saveAppliance() {
+    console.log("🔍 saveAppliance appelée");
+    
     const id = document.getElementById('applianceId').value;
+    const name = document.getElementById('applianceName').value;
+    const power = parseFloat(document.getElementById('appliancePower').value);
+    const hoursPerDay = parseFloat(document.getElementById('applianceHours').value);
+    const daysPerMonth = parseInt(document.getElementById('applianceDays').value);
+    const type = document.getElementById('applianceType').value;
+    const personId = type === 'individual' ? parseInt(document.getElementById('appliancePersonId').value) : null;
+    const category = document.getElementById('applianceCategory').value;
+    
+    // Validation
+    if (!name) {
+        showNotification('Veuillez entrer un nom d\'appareil', 'error');
+        console.log("❌ Nom manquant");
+        return;
+    }
+    
+    if (!power || power <= 0) {
+        showNotification('Veuillez entrer une puissance valide', 'error');
+        console.log("❌ Puissance invalide");
+        return;
+    }
+    
+    console.log(`📝 Sauvegarde appareil: ${name}, ID: ${id || 'nouveau'}`);
+    
+    // Calcul de la consommation
+    const consumption = (power * hoursPerDay * daysPerMonth) / 1000;
+    
     const applianceData = {
         id: id ? parseInt(id) : Date.now(),
-        name: document.getElementById('applianceName').value,
-        power: parseFloat(document.getElementById('appliancePower').value),
-        hoursPerDay: parseFloat(document.getElementById('applianceHours').value),
-        daysPerMonth: parseInt(document.getElementById('applianceDays').value),
-        type: document.getElementById('applianceType').value,
-        personId: document.getElementById('applianceType').value === 'individual' ? parseInt(document.getElementById('appliancePersonId').value) : null,
-        category: document.getElementById('applianceCategory').value
+        name: name,
+        power: power,
+        hoursPerDay: hoursPerDay,
+        daysPerMonth: daysPerMonth,
+        type: type,
+        personId: personId,
+        category: category,
+        consumption: consumption
     };
-    if (!applianceData.name || !applianceData.power) { showNotification('Veuillez remplir tous les champs', 'error'); return; }
-    applianceData.consumption = (applianceData.power * applianceData.hoursPerDay * applianceData.daysPerMonth) / 1000;
+    
     if (id) {
+        // Modification d'un appareil existant
         const index = appliances.findIndex(a => a.id === parseInt(id));
-        appliances[index] = applianceData;
-        showNotification('Appareil modifié avec succès', 'success');
+        if (index !== -1) {
+            appliances[index] = applianceData;
+            showNotification('Appareil modifié avec succès', 'success');
+            console.log(`✅ Appareil modifié: ${name}`);
+        } else {
+            console.error("❌ Appareil non trouvé pour modification");
+            showNotification('Erreur: appareil non trouvé', 'error');
+            return;
+        }
     } else {
+        // Ajout d'un nouvel appareil
         appliances.push(applianceData);
         showNotification('Appareil ajouté avec succès', 'success');
+        console.log(`✅ Nouvel appareil ajouté: ${name}, consommation: ${consumption.toFixed(2)} kWh`);
     }
+    
+    // Sauvegarder les données
     saveData();
+    
+    // Mettre à jour toutes les interfaces
     updateAppliancesList();
     updateDashboard();
     updateBilling();
+    
+    // Forcer le rafraîchissement des graphiques
+    if (typeof updateCharts === 'function') {
+        updateCharts();
+    }
+    
+    // Fermer le modal
     closeApplianceModal();
+    
+    console.log(`✅ Appareil sauvegardé, total: ${appliances.length} appareils`);
 }
 
+// ========================================
+// SUPPRIMER UN APPAREIL
+// ========================================
+
 function deleteAppliance(id) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet appareil ?')) {
+    console.log(`🔍 deleteAppliance appelé, ID: ${id}`);
+    
+    const appliance = appliances.find(a => a.id === id);
+    if (!appliance) {
+        console.error(`❌ Appareil avec ID ${id} non trouvé`);
+        return;
+    }
+    
+    if (confirm(`Êtes-vous sûr de vouloir supprimer l'appareil "${appliance.name}" ?`)) {
         appliances = appliances.filter(a => a.id !== id);
         saveData();
         updateAppliancesList();
         updateDashboard();
         updateBilling();
-        showNotification('Appareil supprimé', 'success');
+        showNotification(`Appareil "${appliance.name}" supprimé`, 'success');
+        console.log(`✅ Appareil supprimé: ${appliance.name}`);
     }
 }
 
@@ -570,23 +789,81 @@ function initConsumptionPreview() {
 // FACTURATION
 // ========================================
 
+// ========================================
+// METTRE À JOUR LA FACTURATION
+// ========================================
+
 function updateBilling() {
+    console.log("🔄 Mise à jour de la facturation");
+    
     const charges = getTotalCharges();
     const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
+    
     const totalChargesElem = document.getElementById('totalCharges');
-    if (totalChargesElem) totalChargesElem.textContent = `${total.toFixed(0)} Ar`;
+    if (totalChargesElem) {
+        totalChargesElem.textContent = `${total.toFixed(0)} Ar`;
+    }
+    
     const container = document.getElementById('billingDetails');
     if (!container) return;
-    if (charges.length === 0) { container.innerHTML = '<p style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Aucune donnée à afficher</p>'; return; }
-    container.innerHTML = `<table class="billing-table"><thead><tr><th>Colocataire</th><th>Électricité (Ar)</th><th>Eau (Ar)</th><th>Total (Ar)</th><th>Statut</th><th>Action</th></tr></thead>
-        <tbody>${charges.map(charge => `<tr>
-            <td><strong>${escapeHtml(charge.personName)}</strong></td>
-            <td class="amount">${charge.electricityCost.toFixed(0)} Ar</td>
-            <td class="amount">${charge.waterCost.toFixed(0)} Ar</td>
-            <td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong></td>
-            <td><span class="unpaid-badge" id="status-${charge.personId}">Non payé</span></td>
-            <td><button class="btn-glow" onclick="markAsPaid(${charge.personId})" style="padding: 5px 15px; font-size: 12px;"><i class="fas fa-check"></i> Payé</button></td>
-        </tr>`).join('')}</tbody></table>`;
+    
+    if (charges.length === 0 || persons.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                <i class="fas fa-file-invoice" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
+                Aucune donnée à afficher<br>
+                <small>Ajoutez des colocataires et des appareils pour voir la facturation</small>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <table class="billing-table">
+            <thead>
+                <tr>
+                    <th>Colocataire</th>
+                    <th>Électricité (Ar)</th>
+                    <th>Eau (Ar)</th>
+                    <th>Total (Ar)</th>
+                    <th>Statut</th>
+                    <th>Action</th>
+                 </thead>
+            <tbody>
+                ${charges.map(charge => {
+                    const percent = total > 0 ? ((charge.totalCost / total) * 100).toFixed(1) : 0;
+                    return `
+                    <tr>
+                        <td><strong>${escapeHtml(charge.personName)}</strong></td>
+                        <td class="amount">${charge.electricityCost.toFixed(0)} Ar</td>
+                        <td class="amount">${charge.waterCost.toFixed(0)} Ar</td>
+                        <td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong> (${percent}%)</td>
+                        <td>
+                            <span class="unpaid-badge" id="status-${charge.personId}">
+                                Non payé
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn-glow" onclick="markAsPaid(${charge.personId})" 
+                                    style="padding: 5px 15px; font-size: 12px;">
+                                <i class="fas fa-check"></i> Payé
+                            </button>
+                        </td>
+                    </tr>
+                `}).join('')}
+                <tr class="total-row">
+                    <td><strong>TOTAL</strong></td>
+                    <td class="amount"><strong>${charges.reduce((sum, c) => sum + c.electricityCost, 0).toFixed(0)} Ar</strong></td>
+                    <td class="amount"><strong>${charges.reduce((sum, c) => sum + c.waterCost, 0).toFixed(0)} Ar</strong></td>
+                    <td class="amount"><strong>${total.toFixed(0)} Ar</strong></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </tbody>
+         </table>
+    `;
+    
+    console.log(`✅ Facturation mise à jour: ${charges.length} charges, total: ${total.toFixed(0)} Ar`);
 }
 
 function markAsPaid(personId) {
@@ -1863,21 +2140,175 @@ function generateInvoice() {
     showNotification('Facture générée avec succès !', 'success');
 }
 
+// ========================================
+// CONFIGURATION DES ÉCOUTEURS D'ÉVÉNEMENTS
+// ========================================
+
 function setupEventListeners() {
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-    document.getElementById('period')?.addEventListener('change', (e) => { currentPeriod = e.target.value; updateDashboard(); updateBilling(); updateHeaderStats(); showNotification('Période changée avec succès', 'success'); });
-    document.getElementById('personForm')?.addEventListener('submit', (e) => { e.preventDefault(); savePerson(); });
-    document.getElementById('personCoefficientSlider')?.addEventListener('input', (e) => { document.getElementById('coefficientValue').textContent = Math.round(e.target.value * 100) + '%'; });
-    document.getElementById('applianceForm')?.addEventListener('submit', (e) => { e.preventDefault(); saveAppliance(); });
-    document.getElementById('applianceType')?.addEventListener('change', (e) => { document.getElementById('personSelectGroup').style.display = e.target.value === 'individual' ? 'block' : 'none'; });
-    document.getElementById('elecMethod')?.addEventListener('change', (e) => { elecMethod = e.target.value; updateBilling(); updateDashboard(); });
-    document.getElementById('waterMethod')?.addEventListener('change', (e) => { waterMethod = e.target.value; updateBilling(); updateDashboard(); });
-    document.getElementById('elecBillAmount')?.addEventListener('input', calculateActualPrices);
-    document.getElementById('elecConsumption')?.addEventListener('input', calculateActualPrices);
-    document.getElementById('waterBillAmount')?.addEventListener('input', calculateActualPrices);
-    document.getElementById('waterConsumption')?.addEventListener('input', calculateActualPrices);
-    document.getElementById('elecTranchesEnabled')?.addEventListener('change', () => renderElecTranches());
-    document.getElementById('waterTranchesEnabled')?.addEventListener('change', () => renderWaterTranches());
+    console.log("🎯 Initialisation des écouteurs d'événements...");
+    
+    // 1. Navigation
+    const navBtns = document.querySelectorAll('.nav-btn');
+    console.log(`📌 Navigation: ${navBtns.length} boutons trouvés`);
+    navBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+    
+    // 2. Période
+    const periodSelect = document.getElementById('period');
+    if (periodSelect) {
+        periodSelect.addEventListener('change', (e) => {
+            currentPeriod = e.target.value;
+            updateDashboard();
+            updateBilling();
+            updateHeaderStats();
+            showNotification('Période changée avec succès', 'success');
+        });
+        console.log("✅ Écouteur période ajouté");
+    } else {
+        console.warn("⚠️ Select période non trouvé");
+    }
+    
+    // 3. Formulaire Personne
+    const personForm = document.getElementById('personForm');
+    if (personForm) {
+        // Supprimer les anciens écouteurs pour éviter les doublons
+        const newPersonForm = personForm.cloneNode(true);
+        personForm.parentNode.replaceChild(newPersonForm, personForm);
+        
+        newPersonForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("📝 Formulaire PERSONNE soumis");
+            savePerson();
+        });
+        console.log("✅ Écouteur formulaire PERSONNE ajouté");
+    } else {
+        console.error("❌ Formulaire PERSONNE non trouvé !");
+    }
+    
+    // 4. Slider coefficient de présence
+    const coeffSlider = document.getElementById('personCoefficientSlider');
+    if (coeffSlider) {
+        coeffSlider.addEventListener('input', (e) => {
+            const coeffValue = document.getElementById('coefficientValue');
+            if (coeffValue) {
+                coeffValue.textContent = Math.round(e.target.value * 100) + '%';
+            }
+        });
+        console.log("✅ Écouteur slider coefficient ajouté");
+    }
+    
+    // 5. Formulaire Appareil
+    const applianceForm = document.getElementById('applianceForm');
+    if (applianceForm) {
+        // Supprimer les anciens écouteurs pour éviter les doublons
+        const newApplianceForm = applianceForm.cloneNode(true);
+        applianceForm.parentNode.replaceChild(newApplianceForm, applianceForm);
+        
+        newApplianceForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("📝 Formulaire APPAREIL soumis");
+            saveAppliance();
+        });
+        console.log("✅ Écouteur formulaire APPAREIL ajouté");
+    } else {
+        console.error("❌ Formulaire APPAREIL non trouvé !");
+    }
+    
+    // 6. Type d'appareil (individuel/partagé)
+    const applianceType = document.getElementById('applianceType');
+    if (applianceType) {
+        applianceType.addEventListener('change', (e) => {
+            const personSelectGroup = document.getElementById('personSelectGroup');
+            if (personSelectGroup) {
+                personSelectGroup.style.display = e.target.value === 'individual' ? 'block' : 'none';
+                console.log(`🔄 Type d'appareil changé: ${e.target.value}`);
+            }
+        });
+        console.log("✅ Écouteur type appareil ajouté");
+    }
+    
+    // 7. Méthode électricité
+    const elecMethodSelect = document.getElementById('elecMethod');
+    if (elecMethodSelect) {
+        elecMethodSelect.addEventListener('change', (e) => {
+            elecMethod = e.target.value;
+            updateBilling();
+            updateDashboard();
+            console.log(`🔄 Méthode électricité: ${elecMethod}`);
+        });
+        console.log("✅ Écouteur méthode électricité ajouté");
+    }
+    
+    // 8. Méthode eau
+    const waterMethodSelect = document.getElementById('waterMethod');
+    if (waterMethodSelect) {
+        waterMethodSelect.addEventListener('change', (e) => {
+            waterMethod = e.target.value;
+            updateBilling();
+            updateDashboard();
+            console.log(`🔄 Méthode eau: ${waterMethod}`);
+        });
+        console.log("✅ Écouteur méthode eau ajouté");
+    }
+    
+    // 9. Champs de facture électricité
+    const elecBillInput = document.getElementById('elecBillAmount');
+    const elecConsumptionInput = document.getElementById('elecConsumption');
+    if (elecBillInput) {
+        elecBillInput.addEventListener('input', () => {
+            console.log("🔄 Montant électricité modifié");
+            calculateActualPrices();
+        });
+        console.log("✅ Écouteur montant électricité ajouté");
+    }
+    if (elecConsumptionInput) {
+        elecConsumptionInput.addEventListener('input', () => {
+            console.log("🔄 Consommation électricité modifiée");
+            calculateActualPrices();
+        });
+        console.log("✅ Écouteur consommation électricité ajouté");
+    }
+    
+    // 10. Champs de facture eau
+    const waterBillInput = document.getElementById('waterBillAmount');
+    const waterConsumptionInput = document.getElementById('waterConsumption');
+    if (waterBillInput) {
+        waterBillInput.addEventListener('input', () => {
+            console.log("🔄 Montant eau modifié");
+            calculateActualPrices();
+        });
+        console.log("✅ Écouteur montant eau ajouté");
+    }
+    if (waterConsumptionInput) {
+        waterConsumptionInput.addEventListener('input', () => {
+            console.log("🔄 Consommation eau modifiée");
+            calculateActualPrices();
+        });
+        console.log("✅ Écouteur consommation eau ajouté");
+    }
+    
+    // 11. Tranches électricité
+    const elecTranchesEnabled = document.getElementById('elecTranchesEnabled');
+    if (elecTranchesEnabled) {
+        elecTranchesEnabled.addEventListener('change', () => {
+            console.log(`🔄 Tranches électricité: ${elecTranchesEnabled.value === 'true' ? 'activées' : 'désactivées'}`);
+            renderElecTranches();
+        });
+        console.log("✅ Écouteur tranches électricité ajouté");
+    }
+    
+    // 12. Tranches eau
+    const waterTranchesEnabled = document.getElementById('waterTranchesEnabled');
+    if (waterTranchesEnabled) {
+        waterTranchesEnabled.addEventListener('change', () => {
+            console.log(`🔄 Tranches eau: ${waterTranchesEnabled.value === 'true' ? 'activées' : 'désactivées'}`);
+            renderWaterTranches();
+        });
+        console.log("✅ Écouteur tranches eau ajouté");
+    }
+    
+    console.log("✅ Tous les écouteurs d'événements sont initialisés !");
 }
 
 function sendQuickMessage(event) { event.preventDefault(); const name = event.target.querySelector('input[type="text"]')?.value; const email = event.target.querySelector('input[type="email"]')?.value; const message = event.target.querySelector('textarea')?.value; if (name && email && message) { showNotification(`Merci ${name} ! Votre message a été envoyé.`, 'success'); event.target.reset(); } else { showNotification('Veuillez remplir tous les champs', 'error'); } }
