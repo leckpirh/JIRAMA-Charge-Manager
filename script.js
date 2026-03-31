@@ -49,6 +49,9 @@ let lastSyncDate = null;
 
 let calculationWorker = null;
 
+// Déclaration globale
+let scanModal = null;
+
 let currentUser = null;
 let users = [
     { id: 1, username: 'admin', password: 'jcm0146!', role: 'admin', name: 'Administrateur' },
@@ -1436,44 +1439,127 @@ function exportToExcel() {
 // SCAN
 // ========================================
 
-let scanModal = null;
+// Fonction corrigée
 function openScanModal() {
-    const modalHtml = `<div id="scanModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-camera"></i> Scanner une facture JIRAMA</h3><span class="close" onclick="closeScanModal()">&times;</span></div><div class="modal-body"><div class="scan-area" onclick="document.getElementById('scanFile').click()"><i class="fas fa-cloud-upload-alt"></i><p>Cliquez pour sélectionner une photo de facture</p><small>Formats acceptés : JPG, PNG, PDF</small><input type="file" id="scanFile" accept="image/*,application/pdf" style="display: none;"></div><div id="scanPreview"></div><div id="scanResult" class="scan-result" style="display: none;"><h4><i class="fas fa-check-circle"></i> Informations détectées</h4><p><strong>Montant électricité :</strong> <span id="detectedElec">0 Ar</span></p><p><strong>Consommation élec :</strong> <span id="detectedKwh">0 kWh</span></p><p><strong>Montant eau :</strong> <span id="detectedWater">0 Ar</span></p><p><strong>Consommation eau :</strong> <span id="detectedM3">0 m³</span></p><button class="btn-glow" onclick="applyDetectedValues()" style="width: 100%; margin-top: 15px;"><i class="fas fa-check"></i> Appliquer ces valeurs</button></div></div></div></div>`;
-    if (document.getElementById('scanModal')) document.getElementById('scanModal').remove();
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    scanModal = document.getElementById('scanModal');
-    scanModal.style.display = 'block';
-    const fileInput = document.getElementById('scanFile');
-    fileInput.onchange = function(e) { const file = e.target.files[0]; if (file) processImage(file); };
-}
-function closeScanModal() { if (scanModal) scanModal.remove(); }
-function processImage(file) {
-    const preview = document.getElementById('scanPreview');
-    const reader = new FileReader();
-    reader.onload = function(e) { preview.innerHTML = `<img src="${e.target.result}" class="scan-preview" alt="Facture scannée">`; setTimeout(() => simulateOCR(), 1500); };
-    reader.readAsDataURL(file);
-}
-function simulateOCR() {
-    const detectedData = { elecAmount: Math.floor(Math.random() * 100000) + 20000, elecKwh: Math.floor(Math.random() * 200) + 50, waterAmount: Math.floor(Math.random() * 50000) + 10000, waterM3: Math.floor(Math.random() * 30) + 5 };
-    document.getElementById('detectedElec').textContent = detectedData.elecAmount.toFixed(0) + ' Ar';
-    document.getElementById('detectedKwh').textContent = detectedData.elecKwh + ' kWh';
-    document.getElementById('detectedWater').textContent = detectedData.waterAmount.toFixed(0) + ' Ar';
-    document.getElementById('detectedM3').textContent = detectedData.waterM3 + ' m³';
-    document.getElementById('scanResult').style.display = 'block';
-    window.tempScannedData = detectedData;
-}
-function applyDetectedValues() {
-    if (window.tempScannedData) {
-        document.getElementById('elecBillAmount').value = window.tempScannedData.elecAmount;
-        document.getElementById('elecConsumption').value = window.tempScannedData.elecKwh;
-        document.getElementById('waterBillAmount').value = window.tempScannedData.waterAmount;
-        document.getElementById('waterConsumption').value = window.tempScannedData.waterM3;
-        calculateActualPrices();
-        showNotification('Valeurs appliquées avec succès !', 'success');
-        closeScanModal();
+    try {
+        // Supprimer modal existante si présente
+        if (document.getElementById('scanModal')) {
+            document.getElementById('scanModal').remove();
+        }
+        
+        const modalHtml = `<div id="scanModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-camera"></i> Scanner une facture JIRAMA</h3><span class="close" onclick="closeScanModal()">&times;</span></div><div class="modal-body"><div class="scan-area" onclick="document.getElementById('scanFile').click()"><i class="fas fa-cloud-upload-alt"></i><p>Cliquez pour sélectionner une photo de facture</p><small>Formats acceptés : JPG, PNG, PDF</small><input type="file" id="scanFile" accept="image/*,application/pdf" style="display: none;"></div><div id="scanPreview"></div><div id="scanResult" class="scan-result" style="display: none;"><h4><i class="fas fa-check-circle"></i> Informations détectées</h4><p><strong>Montant électricité :</strong> <span id="detectedElec">0 Ar</span></p><p><strong>Consommation élec :</strong> <span id="detectedKwh">0 kWh</span></p><p><strong>Montant eau :</strong> <span id="detectedWater">0 Ar</span></p><p><strong>Consommation eau :</strong> <span id="detectedM3">0 m³</span></p><button class="btn-glow" onclick="applyDetectedValues()" style="width: 100%; margin-top: 15px;"><i class="fas fa-check"></i> Appliquer ces valeurs</button></div></div></div></div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        scanModal = document.getElementById('scanModal');
+        scanModal.style.display = 'block';
+        
+        const fileInput = document.getElementById('scanFile');
+        if (fileInput) {
+            fileInput.onchange = function(e) { 
+                const file = e.target.files[0]; 
+                if (file) processImage(file); 
+            };
+        }
+    } catch (error) {
+        console.error("Erreur openScanModal:", error);
+        alert("Impossible d'ouvrir le scanner. Vérifiez la console.");
     }
 }
 
+function closeScanModal() { 
+    try {
+        if (scanModal) scanModal.remove();
+        const modal = document.getElementById('scanModal');
+        if (modal) modal.remove();
+    } catch (error) {
+        console.error("Erreur closeScanModal:", error);
+    }
+}
+
+function processImage(file) {
+    try {
+        const preview = document.getElementById('scanPreview');
+        if (!preview) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) { 
+            preview.innerHTML = `<img src="${e.target.result}" class="scan-preview" alt="Facture scannée" style="max-width: 100%; margin-top: 15px;">`; 
+            setTimeout(() => simulateOCR(), 1500); 
+        };
+        reader.onerror = function() {
+            alert("Erreur lors de la lecture du fichier");
+        };
+        reader.readAsDataURL(file);
+    } catch (error) {
+        console.error("Erreur processImage:", error);
+        alert("Erreur lors du traitement de l'image");
+    }
+}
+
+function simulateOCR() {
+    try {
+        // Simulation de détection OCR (à remplacer par votre vraie logique)
+        const detectedData = { 
+            elecAmount: Math.floor(Math.random() * 100000) + 20000, 
+            elecKwh: Math.floor(Math.random() * 200) + 50, 
+            waterAmount: Math.floor(Math.random() * 50000) + 10000, 
+            waterM3: Math.floor(Math.random() * 30) + 5 
+        };
+        
+        const elecSpan = document.getElementById('detectedElec');
+        const kwhSpan = document.getElementById('detectedKwh');
+        const waterSpan = document.getElementById('detectedWater');
+        const m3Span = document.getElementById('detectedM3');
+        const resultDiv = document.getElementById('scanResult');
+        
+        if (elecSpan) elecSpan.textContent = detectedData.elecAmount.toFixed(0) + ' Ar';
+        if (kwhSpan) kwhSpan.textContent = detectedData.elecKwh + ' kWh';
+        if (waterSpan) waterSpan.textContent = detectedData.waterAmount.toFixed(0) + ' Ar';
+        if (m3Span) m3Span.textContent = detectedData.waterM3 + ' m³';
+        if (resultDiv) resultDiv.style.display = 'block';
+        
+        window.tempScannedData = detectedData;
+    } catch (error) {
+        console.error("Erreur simulateOCR:", error);
+    }
+}
+
+function applyDetectedValues() {
+    try {
+        if (window.tempScannedData) {
+            const elecAmountInput = document.getElementById('elecBillAmount');
+            const elecConsInput = document.getElementById('elecConsumption');
+            const waterAmountInput = document.getElementById('waterBillAmount');
+            const waterConsInput = document.getElementById('waterConsumption');
+            
+            if (elecAmountInput) elecAmountInput.value = window.tempScannedData.elecAmount;
+            if (elecConsInput) elecConsInput.value = window.tempScannedData.elecKwh;
+            if (waterAmountInput) waterAmountInput.value = window.tempScannedData.waterAmount;
+            if (waterConsInput) waterConsInput.value = window.tempScannedData.waterM3;
+            
+            // Appel sécurisé à calculateActualPrices
+            if (typeof calculateActualPrices === 'function') {
+                calculateActualPrices();
+            } else {
+                console.warn("calculateActualPrices non définie");
+            }
+            
+            // Appel sécurisé à showNotification
+            if (typeof showNotification === 'function') {
+                showNotification('Valeurs appliquées avec succès !', 'success');
+            } else {
+                alert("Valeurs appliquées avec succès !");
+            }
+            
+            closeScanModal();
+        } else {
+            alert("Aucune donnée scannée à appliquer");
+        }
+    } catch (error) {
+        console.error("Erreur applyDetectedValues:", error);
+        alert("Erreur lors de l'application des valeurs");
+    }
+}
 // ========================================
 // THÈME
 // ========================================
@@ -2240,3 +2326,103 @@ async function openScanModalLazy() {
 window.showBudgetSimulator = showBudgetSimulatorLazy;
 window.exportToExcel = exportToExcelLazy;
 window.openScanModal = openScanModalLazy;
+
+// ========== SIMULATEUR BUDGET ==========
+
+function openBudgetSimulator() {
+    try {
+        // Supprimer modal existante si présente
+        if (document.getElementById('budgetSimulatorModal')) {
+            document.getElementById('budgetSimulatorModal').remove();
+        }
+        
+        const modalHtml = `
+        <div id="budgetSimulatorModal" class="modal">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h3><i class="fas fa-chart-line"></i> Simulateur de budget</h3>
+                    <span class="close" onclick="closeBudgetSimulator()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div style="margin-bottom: 15px;">
+                        <label><i class="fas fa-users"></i> Nombre de personnes :</label>
+                        <input type="number" id="simNbPersonnes" class="input-field" value="2" min="1" style="width: 100%; padding: 10px; margin-top: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label><i class="fas fa-bolt"></i> Budget électricité estimé (Ar) :</label>
+                        <input type="number" id="simBudgetElec" class="input-field" value="50000" min="0" style="width: 100%; padding: 10px; margin-top: 5px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label><i class="fas fa-tint"></i> Budget eau estimé (Ar) :</label>
+                        <input type="number" id="simBudgetEau" class="input-field" value="20000" min="0" style="width: 100%; padding: 10px; margin-top: 5px;">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label><i class="fas fa-wrench"></i> Budget réparations / divers (Ar) :</label>
+                        <input type="number" id="simBudgetDivers" class="input-field" value="10000" min="0" style="width: 100%; padding: 10px; margin-top: 5px;">
+                    </div>
+                    <button class="btn-glow" onclick="calculerSimulationBudget()" style="width: 100%; padding: 12px;">
+                        <i class="fas fa-calculator"></i> Calculer la répartition
+                    </button>
+                    <div id="simulationResultat" style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.05); border-radius: 10px; display: none;">
+                        <h4><i class="fas fa-chart-pie"></i> Résultat :</h4>
+                        <p><strong>Total charges :</strong> <span id="simTotal">0 Ar</span></p>
+                        <p><strong>Part par personne :</strong> <span id="simPartParPersonne">0 Ar</span></p>
+                        <hr>
+                        <p><i class="fas fa-lightbulb"></i> <strong>Recommandation :</strong> <span id="simRecommandation"></span></p>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = document.getElementById('budgetSimulatorModal');
+        if (modal) modal.style.display = 'block';
+        
+    } catch (error) {
+        console.error("Erreur openBudgetSimulator:", error);
+        alert("Impossible d'ouvrir le simulateur");
+    }
+}
+
+function closeBudgetSimulator() {
+    try {
+        const modal = document.getElementById('budgetSimulatorModal');
+        if (modal) modal.remove();
+    } catch (error) {
+        console.error("Erreur closeBudgetSimulator:", error);
+    }
+}
+
+function calculerSimulationBudget() {
+    try {
+        // Récupérer les valeurs
+        const nbPersonnes = parseInt(document.getElementById('simNbPersonnes')?.value) || 1;
+        const budgetElec = parseFloat(document.getElementById('simBudgetElec')?.value) || 0;
+        const budgetEau = parseFloat(document.getElementById('simBudgetEau')?.value) || 0;
+        const budgetDivers = parseFloat(document.getElementById('simBudgetDivers')?.value) || 0;
+        
+        // Calculs
+        const total = budgetElec + budgetEau + budgetDivers;
+        const partParPersonne = total / nbPersonnes;
+        
+        // Afficher les résultats
+        document.getElementById('simTotal').textContent = total.toFixed(0) + ' Ar';
+        document.getElementById('simPartParPersonne').textContent = partParPersonne.toFixed(0) + ' Ar';
+        
+        // Recommandation
+        const recommandation = document.getElementById('simRecommandation');
+        if (partParPersonne < 20000) {
+            recommandation.innerHTML = '✅ Budget confortable. Pensez à épargner la différence.';
+        } else if (partParPersonne < 40000) {
+            recommandation.innerHTML = '⚠️ Budget modéré. Surveillez votre consommation.';
+        } else {
+            recommandation.innerHTML = '🔴 Budget élevé. Envisagez des économies d\'énergie.';
+        }
+        
+        document.getElementById('simulationResultat').style.display = 'block';
+        
+    } catch (error) {
+        console.error("Erreur calculerSimulationBudget:", error);
+        alert("Erreur lors du calcul");
+    }
+}
