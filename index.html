@@ -234,37 +234,340 @@
                 <div id="billingDetails" class="billing-table-container"></div>
             </div>
 
-            <!-- Settings Tab -->
-            <div id="settings" class="tab-content">
-                <div class="settings-grid">
-                    <div class="settings-card"><div class="card-header"><h3><i class="fas fa-bolt"></i> Facture Électricité JIRAMA</h3></div><div class="form-group"><label>Montant total électricité (Ar)</label><input type="number" id="elecBillAmount" step="100" value="0" class="premium-input"><small>Entrez le montant total de votre facture JIRAMA</small></div><div class="form-group"><label>Consommation électrique totale (kWh)</label><input type="number" id="elecConsumption" step="1" value="0" class="premium-input"><small>Consommation indiquée sur votre facture</small></div><div class="form-group calculation-result"><label><i class="fas fa-calculator"></i> Prix moyen du kWh</label><div class="result-display" id="actualPricePerKwh">0 Ar/kWh</div><small>Calculé automatiquement (si facture saisie)</small></div></div>
-                    <div class="settings-card"><div class="card-header"><h3><i class="fas fa-tint"></i> Facture Eau JIRAMA</h3></div><div class="form-group"><label>Montant total eau (Ar)</label><input type="number" id="waterBillAmount" step="100" value="0" class="premium-input"><small>Entrez le montant total de votre facture JIRAMA</small></div><div class="form-group"><label>Consommation d'eau totale (m³)</label><input type="number" id="waterConsumption" step="1" value="0" class="premium-input"><small>Consommation indiquée sur votre facture</small></div><div class="form-group calculation-result"><label><i class="fas fa-calculator"></i> Prix moyen du m³</label><div class="result-display" id="actualPricePerM3">0 Ar/m³</div><small>Calculé automatiquement (si facture saisie)</small></div></div>
-                    <div class="settings-card"><div class="card-header"><h3><i class="fas fa-calculator"></i> Méthode de répartition</h3></div><div class="form-group"><label>Méthode électricité</label><select id="elecMethod" class="premium-select"><option value="basedOnBill">Basé sur la facture totale</option><option value="basedOnAppliances">Basé sur les appareils</option></select></div><div class="form-group"><label>Méthode eau</label><select id="waterMethod" class="premium-select"><option value="equitable">Division équitable</option><option value="basedOnConsumption">Basé sur consommation individuelle</option></select></div></div>
-                    <div class="settings-card"><div class="card-header"><h3><i class="fas fa-charging-station"></i> Tarifs Électricité par tranches</h3></div><div class="form-group"><label>Activer les tranches personnalisées</label><select id="elecTranchesEnabled" class="premium-select"><option value="false">Non - Utiliser le prix moyen de la facture</option><option value="true">Oui - Définir mes propres tranches</option></select><small>Si activé, le prix moyen de la facture ne sera pas utilisé</small></div><div id="elecTranchesContainer"><div class="tranche-item" id="elecTrancheTemplate" style="display: none;"><div class="form-group tranche-group"><div class="tranche-header"><span class="tranche-title">Tranche <span class="tranche-number">1</span></span><button type="button" class="btn-icon delete tranche-delete" onclick="removeElecTranche(this)"><i class="fas fa-trash"></i></button></div><div class="tranche-inputs"><div class="tranche-range"><label>De (kWh)</label><input type="number" class="premium-input tranche-min" step="1" value="0" placeholder="Min"></div><div class="tranche-range"><label>À (kWh)</label><input type="number" class="premium-input tranche-max" step="1" value="50" placeholder="Max"></div><div class="tranche-range"><label>Prix (Ar/kWh)</label><input type="number" class="premium-input tranche-price" step="10" value="450" placeholder="Prix"></div></div></div></div><div id="elecTranchesList"></div><button type="button" class="btn-outline" onclick="addElecTranche()" style="margin-top: 10px; width: 100%;"><i class="fas fa-plus"></i> Ajouter une tranche électricité</button></div></div>
-                    <div class="settings-card"><div class="card-header"><h3><i class="fas fa-tint"></i> Tarifs Eau par tranches</h3></div><div class="form-group"><label>Activer les tranches personnalisées</label><select id="waterTranchesEnabled" class="premium-select"><option value="false">Non - Utiliser le prix moyen de la facture</option><option value="true">Oui - Définir mes propres tranches</option></select><small>Si activé, le prix moyen de la facture ne sera pas utilisé</small></div><div id="waterTranchesContainer"><div class="tranche-item" id="waterTrancheTemplate" style="display: none;"><div class="form-group tranche-group"><div class="tranche-header"><span class="tranche-title">Tranche <span class="tranche-number">1</span></span><button type="button" class="btn-icon delete tranche-delete" onclick="removeWaterTranche(this)"><i class="fas fa-trash"></i></button></div><div class="tranche-inputs"><div class="tranche-range"><label>De (m³)</label><input type="number" class="premium-input tranche-min" step="1" value="0" placeholder="Min"></div><div class="tranche-range"><label>À (m³)</label><input type="number" class="premium-input tranche-max" step="1" value="10" placeholder="Max"></div><div class="tranche-range"><label>Prix (Ar/m³)</label><input type="number" class="premium-input tranche-price" step="100" value="2000" placeholder="Prix"></div></div></div></div><div id="waterTranchesList"></div><button type="button" class="btn-outline" onclick="addWaterTranche()" style="margin-top: 10px; width: 100%;"><i class="fas fa-plus"></i> Ajouter une tranche eau</button></div></div>
-                    <div class="settings-card action-card"><div class="card-header"><h3><i class="fas fa-save"></i> Actions</h3></div><div class="settings-actions" style="margin-top: 10px;"><button class="btn-glow" onclick="saveSettings()" style="flex: 1;"><i class="fas fa-save"></i> Sauvegarder</button><button class="btn-outline" onclick="resetData()" style="flex: 1;"><i class="fas fa-trash-alt"></i> Réinitialiser</button></div></div>
-                </div>
-                
-                <div class="settings-grid-bottom">
-                    <div class="settings-card"><div class="card-header"><h3><i class="fas fa-envelope"></i> Notifications par email</h3></div><div class="form-group"><label>Activer les notifications</label><select id="emailNotifications" class="premium-select"><option value="false">Désactivé</option><option value="true">Activé</option></select></div><div class="form-group"><label>Emails des colocataires</label><div id="emailList"></div><small>Les emails sont déjà renseignés dans les profils</small></div><button class="btn-outline" onclick="sendEmailTest()" style="width: 100%;"><i class="fas fa-paper-plane"></i> Tester l'envoi</button></div>
-                    <div class="settings-card"><div class="card-header"><h3><i class="fas fa-bell"></i> Rappels de paiement</h3></div><div class="form-group"><label>Activer les rappels</label><select id="paymentReminders" class="premium-select"><option value="false">Désactivé</option><option value="true">Activé</option></select></div><div class="form-group"><label>Jours avant échéance</label><select id="reminderDays" class="premium-select"><option value="3">3 jours avant</option><option value="5">5 jours avant</option><option value="7">7 jours avant</option></select></div></div>
-                    <div class="settings-card"><div class="card-header"><h3><i class="fas fa-cloud-upload-alt"></i> Sauvegarde Cloud</h3></div><div class="form-group"><label>Synchronisation automatique</label><select id="autoSync" class="premium-select"><option value="false">Désactivée</option><option value="true">Activée</option></select></div><div class="form-group"><label>Dernière synchronisation</label><p id="lastSync" style="color: rgba(255,255,255,0.6);">Jamais</p></div><button class="btn-outline" onclick="signInToDrive()" style="width: 100%; margin-bottom: 10px;"><i class="fab fa-google"></i> Se connecter à Google Drive</button><div class="settings-actions" style="margin-top: 15px;"><button class="btn-glow" onclick="syncToCloud()" style="flex: 1;"><i class="fas fa-cloud-upload-alt"></i> Sauvegarder</button><button class="btn-outline" onclick="restoreFromCloud()" style="flex: 1;"><i class="fas fa-cloud-download-alt"></i> Restaurer</button></div></div>
-                  <!-- Ajoutez dans la section settings-grid -->
-<div class="settings-card">
-    <div class="card-header">
-        <h3><i class="fas fa-users-cog"></i> Gestion des comptes</h3>
-    </div>
-    <div class="form-group">
-        <label>Chaque colocataire peut avoir son propre compte</label>
-        <button class="btn-glow" onclick="showUsersManagement()" style="width: 100%; margin-top: 10px;">
-            <i class="fas fa-user-plus"></i> Gérer les comptes utilisateurs
-        </button>
-        <small>Les comptes permettent à chaque colocataire de se connecter avec son propre mot de passe</small>
-    </div>
-</div>
+          <!-- Settings Tab -->
+<div id="settings" class="tab-content">
+    <div class="settings-accordion">
+        
+        <!-- 1. JCM Calculate -->
+        <div class="settings-accordion-item">
+            <div class="settings-accordion-header">
+                <i class="fas fa-calculator"></i>
+                <span>JCM Calculate</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="settings-accordion-content">
+                <div class="settings-grid-accordion">
+                    <!-- Facture Électricité JIRAMA -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-bolt"></i> Facture Électricité JIRAMA</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Montant total électricité (Ar)</label>
+                            <input type="number" id="elecBillAmount" step="100" value="0" class="premium-input">
+                            <small>Entrez le montant total de votre facture JIRAMA</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Consommation électrique totale (kWh)</label>
+                            <input type="number" id="elecConsumption" step="1" value="0" class="premium-input">
+                            <small>Consommation indiquée sur votre facture</small>
+                        </div>
+                        <div class="form-group calculation-result">
+                            <label><i class="fas fa-calculator"></i> Prix moyen du kWh</label>
+                            <div class="result-display" id="actualPricePerKwh">0 Ar/kWh</div>
+                            <small>Calculé automatiquement (si facture saisie)</small>
+                        </div>
+                    </div>
+
+                    <!-- Facture Eau JIRAMA -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-tint"></i> Facture Eau JIRAMA</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Montant total eau (Ar)</label>
+                            <input type="number" id="waterBillAmount" step="100" value="0" class="premium-input">
+                            <small>Entrez le montant total de votre facture JIRAMA</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Consommation d'eau totale (m³)</label>
+                            <input type="number" id="waterConsumption" step="1" value="0" class="premium-input">
+                            <small>Consommation indiquée sur votre facture</small>
+                        </div>
+                        <div class="form-group calculation-result">
+                            <label><i class="fas fa-calculator"></i> Prix moyen du m³</label>
+                            <div class="result-display" id="actualPricePerM3">0 Ar/m³</div>
+                            <small>Calculé automatiquement (si facture saisie)</small>
+                        </div>
+                    </div>
+
+                    <!-- Méthode de répartition -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-calculator"></i> Méthode de répartition</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Méthode électricité</label>
+                            <select id="elecMethod" class="premium-select">
+                                <option value="basedOnBill">Basé sur la facture totale</option>
+                                <option value="basedOnAppliances">Basé sur les appareils</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Méthode eau</label>
+                            <select id="waterMethod" class="premium-select">
+                                <option value="equitable">Division équitable</option>
+                                <option value="basedOnConsumption">Basé sur consommation individuelle</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Tarifs Électricité par tranches -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-charging-station"></i> Tarifs Électricité par tranches</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Activer les tranches personnalisées</label>
+                            <select id="elecTranchesEnabled" class="premium-select">
+                                <option value="false">Non - Utiliser le prix moyen de la facture</option>
+                                <option value="true">Oui - Définir mes propres tranches</option>
+                            </select>
+                            <small>Si activé, le prix moyen de la facture ne sera pas utilisé</small>
+                        </div>
+                        <div id="elecTranchesContainer">
+                            <div class="tranche-item" id="elecTrancheTemplate" style="display: none;">
+                                <div class="form-group tranche-group">
+                                    <div class="tranche-header">
+                                        <span class="tranche-title">Tranche <span class="tranche-number">1</span></span>
+                                        <button type="button" class="btn-icon delete tranche-delete" onclick="removeElecTranche(this)"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                    <div class="tranche-inputs">
+                                        <div class="tranche-range">
+                                            <label>De (kWh)</label>
+                                            <input type="number" class="premium-input tranche-min" step="1" value="0" placeholder="Min">
+                                        </div>
+                                        <div class="tranche-range">
+                                            <label>À (kWh)</label>
+                                            <input type="number" class="premium-input tranche-max" step="1" value="50" placeholder="Max">
+                                        </div>
+                                        <div class="tranche-range">
+                                            <label>Prix (Ar/kWh)</label>
+                                            <input type="number" class="premium-input tranche-price" step="10" value="450" placeholder="Prix">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="elecTranchesList"></div>
+                            <button type="button" class="btn-outline" onclick="addElecTranche()" style="margin-top: 10px; width: 100%;">
+                                <i class="fas fa-plus"></i> Ajouter une tranche électricité
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tarifs Eau par tranches -->
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-tint"></i> Tarifs Eau par tranches</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Activer les tranches personnalisées</label>
+                            <select id="waterTranchesEnabled" class="premium-select">
+                                <option value="false">Non - Utiliser le prix moyen de la facture</option>
+                                <option value="true">Oui - Définir mes propres tranches</option>
+                            </select>
+                            <small>Si activé, le prix moyen de la facture ne sera pas utilisé</small>
+                        </div>
+                        <div id="waterTranchesContainer">
+                            <div class="tranche-item" id="waterTrancheTemplate" style="display: none;">
+                                <div class="form-group tranche-group">
+                                    <div class="tranche-header">
+                                        <span class="tranche-title">Tranche <span class="tranche-number">1</span></span>
+                                        <button type="button" class="btn-icon delete tranche-delete" onclick="removeWaterTranche(this)"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                    <div class="tranche-inputs">
+                                        <div class="tranche-range">
+                                            <label>De (m³)</label>
+                                            <input type="number" class="premium-input tranche-min" step="1" value="0" placeholder="Min">
+                                        </div>
+                                        <div class="tranche-range">
+                                            <label>À (m³)</label>
+                                            <input type="number" class="premium-input tranche-max" step="1" value="10" placeholder="Max">
+                                        </div>
+                                        <div class="tranche-range">
+                                            <label>Prix (Ar/m³)</label>
+                                            <input type="number" class="premium-input tranche-price" step="100" value="2000" placeholder="Prix">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="waterTranchesList"></div>
+                            <button type="button" class="btn-outline" onclick="addWaterTranche()" style="margin-top: 10px; width: 100%;">
+                                <i class="fas fa-plus"></i> Ajouter une tranche eau
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="settings-card action-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-save"></i> Actions</h3>
+                        </div>
+                        <div class="settings-actions" style="margin-top: 10px;">
+                            <button class="btn-glow" onclick="saveSettings()" style="flex: 1;">
+                                <i class="fas fa-save"></i> Sauvegarder
+                            </button>
+                            <button class="btn-outline" onclick="resetData()" style="flex: 1;">
+                                <i class="fas fa-trash-alt"></i> Réinitialiser
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
 
+        <!-- 2. Email Notifications -->
+        <div class="settings-accordion-item">
+            <div class="settings-accordion-header">
+                <i class="fas fa-envelope"></i>
+                <span>Email Notifications</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="settings-accordion-content">
+                <div class="settings-single-card">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-envelope"></i> Notifications par email</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Activer les notifications</label>
+                            <select id="emailNotifications" class="premium-select">
+                                <option value="false">Désactivé</option>
+                                <option value="true">Activé</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Emails des colocataires</label>
+                            <div id="emailList"></div>
+                            <small>Les emails sont déjà renseignés dans les profils</small>
+                        </div>
+                        <button class="btn-outline" onclick="sendEmailTest()" style="width: 100%;">
+                            <i class="fas fa-paper-plane"></i> Tester l'envoi
+                        </button>
+                        <button class="btn-glow" onclick="sendInvoiceByEmail()" style="width: 100%; margin-top: 10px;">
+                            <i class="fas fa-envelope"></i> Envoyer les factures
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Payment Reminders -->
+        <div class="settings-accordion-item">
+            <div class="settings-accordion-header">
+                <i class="fas fa-bell"></i>
+                <span>Payment Reminders</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="settings-accordion-content">
+                <div class="settings-single-card">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-bell"></i> Rappels de paiement</h3>
+                        </div>
+                        <div class="form-group">
+                            <label>Activer les rappels</label>
+                            <select id="paymentReminders" class="premium-select">
+                                <option value="false">Désactivé</option>
+                                <option value="true">Activé</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Jours avant échéance</label>
+                            <select id="reminderDays" class="premium-select">
+                                <option value="3">3 jours avant</option>
+                                <option value="5">5 jours avant</option>
+                                <option value="7">7 jours avant</option>
+                            </select>
+                        </div>
+                        <div class="info-message">
+                            <i class="fas fa-info-circle"></i>
+                            <small>Les rappels seront envoyés par email aux colocataires ayant un email renseigné</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Cloud Backup -->
+        <div class="settings-accordion-item">
+            <div class="settings-accordion-header">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <span>Cloud Backup</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="settings-accordion-content">
+                <div class="settings-single-card">
+                    <div class="settings-card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-cloud-upload-alt"></i> Sauvegarde Cloud Personnalisée</h3>
+                        </div>
+                        
+                        <div id="cloudUserInfo" style="margin-bottom: 15px;">
+                            <button class="btn-glow" onclick="cloudStorage?.signIn()" style="width: 100%;">
+                                <i class="fab fa-google"></i> Se connecter avec Google
+                            </button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Synchronisation automatique</label>
+                            <select id="autoSync" class="premium-select">
+                                <option value="false">Désactivée</option>
+                                <option value="true">Activée (toutes les heures)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Dernière synchronisation</label>
+                            <p id="lastSync" style="color: rgba(255,255,255,0.6);">Jamais</p>
+                        </div>
+                        
+                        <div class="settings-actions" style="margin-top: 15px;">
+                            <button class="btn-glow" id="cloudSaveBtn" onclick="saveToCloud()" style="flex: 1;" disabled>
+                                <i class="fas fa-cloud-upload-alt"></i> Sauvegarder
+                            </button>
+                            <button class="btn-outline" id="cloudRestoreBtn" onclick="restoreFromCloud()" style="flex: 1;" disabled>
+                                <i class="fas fa-cloud-download-alt"></i> Restaurer
+                            </button>
+                        </div>
+                        <small><i class="fas fa-info-circle"></i> Les données sont sauvegardées dans votre espace Google Drive personnel</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Account Management -->
+<!-- Account Management - Version améliorée -->
+<div class="settings-accordion-item">
+    <div class="settings-accordion-header">
+        <i class="fas fa-users-cog"></i>
+        <span>Account Management</span>
+        <i class="fas fa-chevron-down"></i>
+    </div>
+    <div class="settings-accordion-content">
+        <div class="settings-single-card">
+            <div class="settings-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-users-cog"></i> Gestion des comptes</h3>
+                </div>
+                <div class="form-group">
+                    <label>Liste des utilisateurs</label>
+                    <div id="usersListPreview" class="users-list-container"></div>
+                </div>
+                <button class="btn-glow" onclick="showUsersManagement()" style="width: 100%; margin-top: 5px;">
+                    <i class="fas fa-user-plus"></i> Gérer les comptes
+                </button>
+                <div class="info-message" style="margin-top: 15px;">
+                    <i class="fas fa-info-circle"></i>
+                    <small>Chaque colocataire peut avoir son propre compte. Les mots de passe par défaut sont "jirama123".</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </div>
+</div>
             <!-- History Tab -->
             <div id="history" class="tab-content">
                 <div class="section-header"><h2><i class="fas fa-history"></i> Historique des factures</h2><button class="btn-outline" onclick="clearHistory()"><i class="fas fa-trash"></i> Effacer l'historique</button></div>
