@@ -47,13 +47,322 @@ let gapiAccessToken = null;
 let autoSyncEnabled = false;
 let lastSyncDate = null;
 
-
 let currentUser = null;
 let users = [
     { id: 1, username: 'admin', password: 'admin123', role: 'admin', name: 'Administrateur' },
     { id: 2, username: 'rakoto', password: 'rakoto123', role: 'user', name: 'Rakoto Jean' },
     { id: 3, username: 'raso', password: 'raso123', role: 'user', name: 'Raso Marie' }
 ];
+
+// Cloud Storage
+const cloudStorage = {
+    isSignedIn: false,
+    currentUser: null,
+    accessToken: null,
+    tokenClient: null,
+    gapiInitialized: false,
+
+    async init() {
+        console.log('☁️ Initialisation Cloud Storage...');
+        const savedUser = localStorage.getItem('cloudUser');
+        if (savedUser) {
+            this.currentUser = JSON.parse(savedUser);
+            this.isSignedIn = true;
+            console.log(`✅ Utilisateur connecté: ${this.currentUser.email}`);
+        }
+        await this.initGoogleAPI();
+        return this.isSignedIn;
+    },
+
+    async initGoogleAPI() {
+        return new Promise((resolve) => {
+            if (typeof gapi === 'undefined') {
+                console.log('⏳ Attente chargement Google API...');
+                setTimeout(() => this.initGoogleAPI().then(resolve), 500);
+                return;
+            }
+            
+            gapi.load('client', async () => {
+                try {
+                    await gapi.client.init({
+                        apiKey: 'AIzaSyBtD4STn8dJAbfvmeJxsZuU4R4cMUPsow8',
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                    });
+                    console.log('✅ Google API initialisé');
+                    this.gapiInitialized = true;
+                    resolve(true);
+                } catch (error) {
+                    console.error('❌ Erreur init Google API:', error);
+                    resolve(false);
+                }
+            });
+        });
+    },
+
+    setupTokenClient() {
+        if (typeof google === 'undefined' || !google.accounts) {
+            console.error('❌ Google Accounts non disponible');
+            return false;
+        }
+        
+        this.tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: '108986838801937638933',
+            scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+            callback: (tokenResponse) => {
+                this.accessToken = tokenResponse.access_token;
+                this.isSignedIn = true;
+                this.getUserInfo();
+                console.log('✅ Authentification Google Drive réussie');
+                showNotification('Connecté à Google Drive avec succès', 'success');
+                this.updateUIAfterLogin();
+            },
+        });
+        return true;
+    },
+
+    async signIn() {
+        if (!this.gapiInitialized) await this.initGoogleAPI();
+        if (!this.tokenClient) this.setupTokenClient();
+        if (this.tokenClient) {
+            this.tokenClient.requestAccessToken();
+        } else {
+            showNotification('Impossible de se connecter à Google', 'error');
+        }
+    },
+
+    signOut() {
+        this.accessToken = null;
+        this.isSignedIn = false;
+        this.currentUser = null;
+        localStorage.removeItem('cloudUser');
+        showNotification('Déconnecté de Google Drive', 'info');
+        this.updateUIAfterLogout();
+    },
+
+    async getUserInfo() {
+        try {
+            const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                headers: { 'Authorization': `Bearer ${this.accessToken}` }
+            });
+            const userInfo = await response.json();
+            this.currentUser = {
+                id: userInfo.id,
+                email: userInfo.email,
+                name: userInfo.name,
+                picture: userInfo.picture
+            };
+            localStorage.setItem('cloudUser', JSON.stringify(this.currentUser));
+            console.log(`✅ Utilisateur: ${this.currentUser.name} (${this.currentUser.email})`);
+            this.displayUserInfo();
+        } catch (error) {
+            console.error('❌ Erreur récupération infos utilisateur:', error);
+        }
+    },
+
+    async saveData(data) {
+        if (!this.isSignedIn || !this.accessToken) {
+            showNotification('Veuillez vous connecter à Google Drive d\'abord', 'info');
+            await this.signIn();
+            return false;
+        }
+        
+        showNotification('Sauvegarde en cours...', 'info');
+        const fileName = `jirama_backup_${new Date().toISOString().split('T')[0]}.json`;
+        const fileContent = JSON.stringify({
+            ...data,
+            exportDate: new Date().toISOString(),
+            userEmail: this.currentUser?.email,
+            version: '3.0'
+        }, null, 2);
+        
+        const blob = new Blob([fileContent], { type: 'application/json' });
+        const existingFileId = await this.findExistingBackup();
+        
+        if (existingFileId) {
+            return this.updateFile(existingFileId, blob, fileName);
+        } else {
+            return this.createFile(blob, fileName);
+        }
+    },
+
+    async findExistingBackup() {
+        try {
+            const response = await fetch(
+                'https://www.googleapis.com/drive/v3/files?q=name contains \'jirama_backup\' and trashed=false&orderBy=modifiedTime desc&pageSize=1',
+                { headers: { 'Authorization': `Bearer ${this.accessToken}` } }
+            );
+            const result = await response.json();
+            return result.files && result.files.length > 0 ? result.files[0].id : null;
+        } catch (error) {
+            console.error('Erreur recherche fichier:', error);
+            return null;
+        }
+    },
+
+    async createFile(blob, fileName) {
+        const metadata = { name: fileName, mimeType: 'application/json', parents: ['root'] };
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', blob);
+        
+        try {
+            const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${this.accessToken}` },
+                body: form
+            });
+            const result = await response.json();
+            if (result.id) {
+                showNotification('Sauvegarde cloud effectuée avec succès !', 'success');
+                this.updateLastSyncInfo();
+                return true;
+            }
+            throw new Error(result.error?.message || 'Erreur');
+        } catch (error) {
+            console.error('Erreur création fichier:', error);
+            showNotification('Erreur lors de la sauvegarde', 'error');
+            return false;
+        }
+    },
+
+    async updateFile(fileId, blob, fileName) {
+        try {
+            const response = await fetch(
+                `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`,
+                { method: 'PATCH', headers: { 'Authorization': `Bearer ${this.accessToken}` }, body: blob }
+            );
+            const result = await response.json();
+            if (result.id) {
+                showNotification('Sauvegarde cloud mise à jour avec succès !', 'success');
+                this.updateLastSyncInfo();
+                return true;
+            }
+            throw new Error(result.error?.message || 'Erreur');
+        } catch (error) {
+            console.error('Erreur mise à jour fichier:', error);
+            showNotification('Erreur lors de la mise à jour', 'error');
+            return false;
+        }
+    },
+
+    async restoreData() {
+        if (!this.isSignedIn || !this.accessToken) {
+            showNotification('Veuillez vous connecter à Google Drive d\'abord', 'info');
+            await this.signIn();
+            return null;
+        }
+        
+        if (!confirm('⚠️ Cette action remplacera toutes vos données actuelles. Continuer ?')) return null;
+        showNotification('Recherche des sauvegardes...', 'info');
+        
+        try {
+            const response = await fetch(
+                'https://www.googleapis.com/drive/v3/files?q=name contains \'jirama_backup\' and trashed=false&orderBy=modifiedTime desc&pageSize=10',
+                { headers: { 'Authorization': `Bearer ${this.accessToken}` } }
+            );
+            const result = await response.json();
+            
+            if (!result.files || result.files.length === 0) {
+                showNotification('Aucune sauvegarde trouvée', 'info');
+                return null;
+            }
+            
+            if (result.files.length === 1) {
+                return this.downloadAndRestore(result.files[0].id);
+            }
+            
+            const backupList = result.files.map((f, i) => `${i + 1}. ${f.name} (${new Date(f.modifiedTime).toLocaleString()})`).join('\n');
+            const choice = prompt(`Choisissez une sauvegarde :\n\n${backupList}\n\nEntrez le numéro (1-${result.files.length}) :`, '1');
+            const selectedIndex = parseInt(choice) - 1;
+            
+            if (selectedIndex >= 0 && selectedIndex < result.files.length) {
+                return this.downloadAndRestore(result.files[selectedIndex].id);
+            }
+            return null;
+        } catch (error) {
+            console.error('Erreur restauration:', error);
+            showNotification('Erreur lors de la restauration', 'error');
+            return null;
+        }
+    },
+
+    async downloadAndRestore(fileId) {
+        showNotification('Téléchargement de la sauvegarde...', 'info');
+        try {
+            const response = await fetch(
+                `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+                { headers: { 'Authorization': `Bearer ${this.accessToken}` } }
+            );
+            const data = await response.json();
+            showNotification('Données restaurées avec succès !', 'success');
+            return data;
+        } catch (error) {
+            console.error('Erreur téléchargement:', error);
+            showNotification('Erreur lors du téléchargement', 'error');
+            return null;
+        }
+    },
+
+    displayUserInfo() {
+        const container = document.getElementById('cloudUserInfo');
+        if (!container) return;
+        
+        if (this.currentUser) {
+            container.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; padding: 10px; background: rgba(0,212,255,0.1); border-radius: 12px;">
+                    <img src="${this.currentUser.picture || 'https://via.placeholder.com/40'}" style="width: 40px; height: 40px; border-radius: 50%;">
+                    <div><div style="font-weight: bold;">${escapeHtml(this.currentUser.name)}</div><div style="font-size: 11px;">${escapeHtml(this.currentUser.email)}</div></div>
+                    <button onclick="cloudStorage.signOut()" style="margin-left: auto; background: rgba(255,107,107,0.2); border: none; padding: 5px 10px; border-radius: 8px; color: #ff6b6b; cursor: pointer;"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `<button class="btn-glow" onclick="cloudStorage.signIn()" style="width: 100%;"><i class="fab fa-google"></i> Se connecter avec Google</button>`;
+        }
+    },
+
+    updateUIAfterLogin() {
+        this.displayUserInfo();
+        const saveBtn = document.getElementById('cloudSaveBtn');
+        const restoreBtn = document.getElementById('cloudRestoreBtn');
+        if (saveBtn) saveBtn.disabled = false;
+        if (restoreBtn) restoreBtn.disabled = false;
+    },
+
+    updateUIAfterLogout() {
+        this.displayUserInfo();
+        const saveBtn = document.getElementById('cloudSaveBtn');
+        const restoreBtn = document.getElementById('cloudRestoreBtn');
+        if (saveBtn) saveBtn.disabled = true;
+        if (restoreBtn) restoreBtn.disabled = true;
+    },
+
+    updateLastSyncInfo() {
+        const lastSyncElem = document.getElementById('lastSync');
+        if (lastSyncElem) lastSyncElem.textContent = new Date().toLocaleString();
+    },
+
+    collectCurrentData() {
+        return {
+            persons: window.persons || [],
+            appliances: window.appliances || [],
+            commonExpenses: window.commonExpenses || [],
+            evolutionData: window.evolutionData || [],
+            history: window.history || [],
+            settings: {
+                elecBillAmount: window.elecBillAmount,
+                waterBillAmount: window.waterBillAmount,
+                elecConsumption: window.elecConsumption,
+                waterConsumption: window.waterConsumption,
+                elecMethod: window.elecMethod,
+                waterMethod: window.waterMethod,
+                elecTranchesEnabled: window.elecTranchesEnabled,
+                waterTranchesEnabled: window.waterTranchesEnabled,
+                electricityTranches: window.electricityTranches,
+                waterTranches: window.waterTranches
+            }
+        };
+    }
+};
 
 // ========================================
 // UTILITAIRES
@@ -248,32 +557,16 @@ function getTotalCharges() {
     });
 }
 
-// Modifier saveData pour inclure les utilisateurs
 function saveData() {
     const data = {
-        persons,
-        appliances,
-        commonExpenses,
-        evolutionData,
-        guests,
-        virtualAccounts,
-        users,  // Ajouter les utilisateurs
-        elecBillAmount,
-        waterBillAmount,
-        elecConsumption,
-        waterConsumption,
-        elecMethod,
-        waterMethod,
-        elecTranchesEnabled,
-        waterTranchesEnabled,
-        electricityTranches,
-        waterTranches,
-        history
+        persons, appliances, commonExpenses, evolutionData, guests, virtualAccounts, users,
+        elecBillAmount, waterBillAmount, elecConsumption, waterConsumption,
+        elecMethod, waterMethod, elecTranchesEnabled, waterTranchesEnabled,
+        electricityTranches, waterTranches, history
     };
     localStorage.setItem('jiramaChargeManager', JSON.stringify(data));
 }
 
-// Modifier loadData pour charger les utilisateurs
 function loadData() {
     const savedData = localStorage.getItem('jiramaChargeManager');
     if (savedData) {
@@ -284,10 +577,22 @@ function loadData() {
         evolutionData = data.evolutionData || [];
         guests = data.guests || [];
         virtualAccounts = data.virtualAccounts || {};
-        users = data.users || [  // Charger les utilisateurs
+        users = data.users || [
             { id: 1, username: 'admin', password: 'admin123', role: 'admin', name: 'Administrateur' }
         ];
-        // ... reste du code
+        elecBillAmount = data.elecBillAmount || 0;
+        waterBillAmount = data.waterBillAmount || 0;
+        elecConsumption = data.elecConsumption || 0;
+        waterConsumption = data.waterConsumption || 0;
+        elecMethod = data.elecMethod || 'basedOnBill';
+        waterMethod = data.waterMethod || 'equitable';
+        elecTranchesEnabled = data.elecTranchesEnabled || false;
+        waterTranchesEnabled = data.waterTranchesEnabled || false;
+        electricityTranches = data.electricityTranches || [];
+        waterTranches = data.waterTranches || [];
+        history = data.history || [];
+        if (electricityTranches.length === 0) initDefaultTranches();
+        if (waterTranches.length === 0) initDefaultTranches();
     } else {
         persons = [
             { id: 1, name: 'Rakoto Jean', email: 'rakoto@email.com', phone: '032XXXXXXX', coefficient: 1 },
@@ -305,7 +610,6 @@ function loadData() {
     loadSettings();
 }
 
-
 // ========================================
 // PERSONNES
 // ========================================
@@ -314,10 +618,6 @@ function updatePersonSelect() {
     const select = document.getElementById('appliancePersonId');
     if (select) select.innerHTML = persons.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
 }
-
-// ========================================
-// METTRE À JOUR LA LISTE DES PERSONNES
-// ========================================
 
 function updatePersonsList() {
     const container = document.getElementById('personsList');
@@ -346,12 +646,8 @@ function updatePersonsList() {
             <p><i class="fas fa-phone"></i> ${escapeHtml(person.phone || 'Non renseigné')}</p>
             <p><i class="fas fa-chart-line"></i> Présence: ${person.coefficient * 100}%</p>
             <div class="card-actions">
-                <button class="btn-icon edit" onclick="showPersonModal(${person.id})">
-                    <i class="fas fa-edit"></i> Modifier
-                </button>
-                <button class="btn-icon delete" onclick="deletePerson(${person.id})">
-                    <i class="fas fa-trash"></i> Supprimer
-                </button>
+                <button class="btn-icon edit" onclick="showPersonModal(${person.id})"><i class="fas fa-edit"></i> Modifier</button>
+                <button class="btn-icon delete" onclick="deletePerson(${person.id})"><i class="fas fa-trash"></i> Supprimer</button>
             </div>
         </div>
     `).join('');
@@ -383,9 +679,7 @@ function showPersonModal(personId = null) {
     modal.style.display = 'block';
 }
 
-// ========================================
-// SAUVEGARDER UNE PERSONNE - VERSION CORRIGÉE
-// ========================================
+function closePersonModal() { document.getElementById('personModal').style.display = 'none'; }
 
 function savePerson() {
     console.log("🔍 savePerson appelée");
@@ -396,7 +690,6 @@ function savePerson() {
     const phone = document.getElementById('personPhone').value;
     const coefficient = parseFloat(document.getElementById('personCoefficientSlider').value);
     
-    // Validation
     if (!name) {
         showNotification('Veuillez entrer un nom', 'error');
         console.log("❌ Nom manquant");
@@ -414,7 +707,6 @@ function savePerson() {
     };
     
     if (id) {
-        // Modification d'une personne existante
         const index = persons.findIndex(p => p.id === parseInt(id));
         if (index !== -1) {
             persons[index] = personData;
@@ -424,12 +716,10 @@ function savePerson() {
             console.error("❌ Personne non trouvée pour modification");
         }
     } else {
-        // Ajout d'une nouvelle personne
         persons.push(personData);
         showNotification('Colocataire ajouté avec succès', 'success');
         console.log(`✅ Nouvelle personne ajoutée: ${name}`);
         
-        // Créer un compte utilisateur automatiquement si email fourni
         if (email) {
             const username = name.toLowerCase().replace(/\s/g, '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             let finalUsername = username;
@@ -453,40 +743,23 @@ function savePerson() {
         }
     }
     
-    // Sauvegarder les données
     saveData();
-    
-    // Mettre à jour toutes les interfaces
     updatePersonsList();
     updatePersonSelect();
     updateDashboard();
     updateBilling();
     updateEmailList();
-    
-    // Forcer le rafraîchissement du tableau de facturation
-    if (typeof updateBilling === 'function') {
-        updateBilling();
-    }
-    
-    // Fermer le modal
     closePersonModal();
-    
     console.log(`✅ Personne sauvegardée, total: ${persons.length} colocataires`);
 }
 
-// ========================================
-// SUPPRIMER UNE PERSONNE
-// ========================================
-
 function deletePerson(id) {
     console.log(`🔍 deletePerson appelé, ID: ${id}`);
-    
     const person = persons.find(p => p.id === id);
     if (!person) {
         console.error(`❌ Personne avec ID ${id} non trouvée`);
         return;
     }
-    
     if (confirm(`Êtes-vous sûr de vouloir supprimer ${person.name} ?\nLes appareils qui lui sont assignés seront également supprimés.`)) {
         persons = persons.filter(p => p.id !== id);
         appliances = appliances.filter(a => a.personId !== id);
@@ -503,10 +776,6 @@ function deletePerson(id) {
 
 // ========================================
 // APPAREILS
-// ========================================
-
-// ========================================
-// METTRE À JOUR LA LISTE DES APPAREILS
 // ========================================
 
 function updateAppliancesList() {
@@ -533,16 +802,7 @@ function updateAppliancesList() {
         const consumption = appliance.consumption.toFixed(2);
         const cost = calculateElectricityCost(appliance.consumption).toFixed(0);
         const person = appliance.personId ? persons.find(p => p.id === appliance.personId) : null;
-        
-        // Catégorie avec icône
-        const categoryIcons = {
-            chauffage: '🔥',
-            cuisson: '🍳',
-            multimedia: '📺',
-            electromenager: '🧺',
-            eclairage: '💡',
-            autre: '🔌'
-        };
+        const categoryIcons = { chauffage: '🔥', cuisson: '🍳', multimedia: '📺', electromenager: '🧺', eclairage: '💡', autre: '🔌' };
         const categoryIcon = categoryIcons[appliance.category] || '🔌';
         
         return `
@@ -556,34 +816,19 @@ function updateAppliancesList() {
                 <p><i class="fas fa-category"></i> ${categoryIcon} ${appliance.category}</p>
                 ${person ? `<p><i class="fas fa-user"></i> Assigné à: ${escapeHtml(person.name)}</p>` : ''}
                 <div class="card-actions">
-                    <button class="btn-icon edit" onclick="showApplianceModal(${appliance.id})">
-                        <i class="fas fa-edit"></i> Modifier
-                    </button>
-                    <button class="btn-icon delete" onclick="deleteAppliance(${appliance.id})">
-                        <i class="fas fa-trash"></i> Supprimer
-                    </button>
+                    <button class="btn-icon edit" onclick="showApplianceModal(${appliance.id})"><i class="fas fa-edit"></i> Modifier</button>
+                    <button class="btn-icon delete" onclick="deleteAppliance(${appliance.id})"><i class="fas fa-trash"></i> Supprimer</button>
                 </div>
             </div>
         `;
     }).join('');
 }
 
-// ========================================
-// AFFICHER LE MODAL APPAREIL
-// ========================================
-
 function showApplianceModal(applianceId = null) {
     console.log(`🔍 showApplianceModal appelé, ID: ${applianceId}`);
-    
     const modal = document.getElementById('applianceModal');
     const title = document.getElementById('applianceModalTitle');
-    
-    if (!modal) {
-        console.error("❌ Modal appareil non trouvé");
-        return;
-    }
-    
-    // Mettre à jour la liste des personnes dans le select
+    if (!modal) { console.error("❌ Modal appareil non trouvé"); return; }
     updatePersonSelect();
     
     if (applianceId !== null) {
@@ -598,19 +843,9 @@ function showApplianceModal(applianceId = null) {
             document.getElementById('applianceType').value = appliance.type;
             document.getElementById('appliancePersonId').value = appliance.personId || '';
             document.getElementById('applianceCategory').value = appliance.category;
-            
             const personSelectGroup = document.getElementById('personSelectGroup');
-            if (personSelectGroup) {
-                personSelectGroup.style.display = appliance.type === 'individual' ? 'block' : 'none';
-            }
-            
-            // Mettre à jour l'aperçu de consommation
-            setTimeout(() => {
-                if (typeof initConsumptionPreview === 'function') {
-                    initConsumptionPreview();
-                }
-            }, 100);
-            
+            if (personSelectGroup) personSelectGroup.style.display = appliance.type === 'individual' ? 'block' : 'none';
+            setTimeout(() => { if (typeof initConsumptionPreview === 'function') initConsumptionPreview(); }, 100);
             console.log(`📝 Édition de l'appareil: ${appliance.name}`);
         } else {
             console.error(`❌ Appareil avec ID ${applianceId} non trouvé`);
@@ -621,32 +856,19 @@ function showApplianceModal(applianceId = null) {
         document.getElementById('applianceId').value = '';
         document.getElementById('applianceType').value = 'individual';
         document.getElementById('applianceCategory').value = 'electromenager';
-        
         const personSelectGroup = document.getElementById('personSelectGroup');
-        if (personSelectGroup) {
-            personSelectGroup.style.display = 'block';
-        }
-        
-        // Réinitialiser l'aperçu
+        if (personSelectGroup) personSelectGroup.style.display = 'block';
         const previewSpan = document.getElementById('consumptionPreview');
-        if (previewSpan) {
-            previewSpan.textContent = '0 kWh/mois';
-        }
-        
+        if (previewSpan) previewSpan.textContent = '0 kWh/mois';
         console.log("📝 Ajout d'un nouvel appareil");
     }
-    
     modal.style.display = 'block';
 }
-function closeApplianceModal() { document.getElementById('applianceModal').style.display = 'none'; }
 
-// ========================================
-// SAUVEGARDER UN APPAREIL - VERSION CORRIGÉE
-// ========================================
+function closeApplianceModal() { document.getElementById('applianceModal').style.display = 'none'; }
 
 function saveAppliance() {
     console.log("🔍 saveAppliance appelée");
-    
     const id = document.getElementById('applianceId').value;
     const name = document.getElementById('applianceName').value;
     const power = parseFloat(document.getElementById('appliancePower').value);
@@ -656,38 +878,14 @@ function saveAppliance() {
     const personId = type === 'individual' ? parseInt(document.getElementById('appliancePersonId').value) : null;
     const category = document.getElementById('applianceCategory').value;
     
-    // Validation
-    if (!name) {
-        showNotification('Veuillez entrer un nom d\'appareil', 'error');
-        console.log("❌ Nom manquant");
-        return;
-    }
-    
-    if (!power || power <= 0) {
-        showNotification('Veuillez entrer une puissance valide', 'error');
-        console.log("❌ Puissance invalide");
-        return;
-    }
+    if (!name) { showNotification('Veuillez entrer un nom d\'appareil', 'error'); return; }
+    if (!power || power <= 0) { showNotification('Veuillez entrer une puissance valide', 'error'); return; }
     
     console.log(`📝 Sauvegarde appareil: ${name}, ID: ${id || 'nouveau'}`);
-    
-    // Calcul de la consommation
     const consumption = (power * hoursPerDay * daysPerMonth) / 1000;
-    
-    const applianceData = {
-        id: id ? parseInt(id) : Date.now(),
-        name: name,
-        power: power,
-        hoursPerDay: hoursPerDay,
-        daysPerMonth: daysPerMonth,
-        type: type,
-        personId: personId,
-        category: category,
-        consumption: consumption
-    };
+    const applianceData = { id: id ? parseInt(id) : Date.now(), name, power, hoursPerDay, daysPerMonth, type, personId, category, consumption };
     
     if (id) {
-        // Modification d'un appareil existant
         const index = appliances.findIndex(a => a.id === parseInt(id));
         if (index !== -1) {
             appliances[index] = applianceData;
@@ -699,44 +897,24 @@ function saveAppliance() {
             return;
         }
     } else {
-        // Ajout d'un nouvel appareil
         appliances.push(applianceData);
         showNotification('Appareil ajouté avec succès', 'success');
         console.log(`✅ Nouvel appareil ajouté: ${name}, consommation: ${consumption.toFixed(2)} kWh`);
     }
     
-    // Sauvegarder les données
     saveData();
-    
-    // Mettre à jour toutes les interfaces
     updateAppliancesList();
     updateDashboard();
     updateBilling();
-    
-    // Forcer le rafraîchissement des graphiques
-    if (typeof updateCharts === 'function') {
-        updateCharts();
-    }
-    
-    // Fermer le modal
+    if (typeof updateCharts === 'function') updateCharts();
     closeApplianceModal();
-    
     console.log(`✅ Appareil sauvegardé, total: ${appliances.length} appareils`);
 }
 
-// ========================================
-// SUPPRIMER UN APPAREIL
-// ========================================
-
 function deleteAppliance(id) {
     console.log(`🔍 deleteAppliance appelé, ID: ${id}`);
-    
     const appliance = appliances.find(a => a.id === id);
-    if (!appliance) {
-        console.error(`❌ Appareil avec ID ${id} non trouvé`);
-        return;
-    }
-    
+    if (!appliance) { console.error(`❌ Appareil avec ID ${id} non trouvé`); return; }
     if (confirm(`Êtes-vous sûr de vouloir supprimer l'appareil "${appliance.name}" ?`)) {
         appliances = appliances.filter(a => a.id !== id);
         saveData();
@@ -758,7 +936,7 @@ function importDefaultAppliances() {
     ];
     defaultAppliances.forEach(app => {
         const consumption = (app.power * app.hoursPerDay * app.daysPerMonth) / 1000;
-        appliances.push({ id: Date.now() + Math.random(), ...app, consumption: consumption, personId: app.type === 'individual' && persons[0] ? persons[0].id : null });
+        appliances.push({ id: Date.now() + Math.random(), ...app, consumption, personId: app.type === 'individual' && persons[0] ? persons[0].id : null });
     });
     saveData();
     updateAppliancesList();
@@ -789,80 +967,21 @@ function initConsumptionPreview() {
 // FACTURATION
 // ========================================
 
-// ========================================
-// METTRE À JOUR LA FACTURATION
-// ========================================
-
 function updateBilling() {
     console.log("🔄 Mise à jour de la facturation");
-    
     const charges = getTotalCharges();
     const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    
     const totalChargesElem = document.getElementById('totalCharges');
-    if (totalChargesElem) {
-        totalChargesElem.textContent = `${total.toFixed(0)} Ar`;
-    }
-    
+    if (totalChargesElem) totalChargesElem.textContent = `${total.toFixed(0)} Ar`;
     const container = document.getElementById('billingDetails');
     if (!container) return;
     
     if (charges.length === 0 || persons.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
-                <i class="fas fa-file-invoice" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
-                Aucune donnée à afficher<br>
-                <small>Ajoutez des colocataires et des appareils pour voir la facturation</small>
-            </div>
-        `;
+        container.innerHTML = `<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);"><i class="fas fa-file-invoice" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>Aucune donnée à afficher<br><small>Ajoutez des colocataires et des appareils pour voir la facturation</small></div>`;
         return;
     }
     
-    container.innerHTML = `
-        <table class="billing-table">
-            <thead>
-                <tr>
-                    <th>Colocataire</th>
-                    <th>Électricité (Ar)</th>
-                    <th>Eau (Ar)</th>
-                    <th>Total (Ar)</th>
-                    <th>Statut</th>
-                    <th>Action</th>
-                 </thead>
-            <tbody>
-                ${charges.map(charge => {
-                    const percent = total > 0 ? ((charge.totalCost / total) * 100).toFixed(1) : 0;
-                    return `
-                    <tr>
-                        <td><strong>${escapeHtml(charge.personName)}</strong></td>
-                        <td class="amount">${charge.electricityCost.toFixed(0)} Ar</td>
-                        <td class="amount">${charge.waterCost.toFixed(0)} Ar</td>
-                        <td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong> (${percent}%)</td>
-                        <td>
-                            <span class="unpaid-badge" id="status-${charge.personId}">
-                                Non payé
-                            </span>
-                        </td>
-                        <td>
-                            <button class="btn-glow" onclick="markAsPaid(${charge.personId})" 
-                                    style="padding: 5px 15px; font-size: 12px;">
-                                <i class="fas fa-check"></i> Payé
-                            </button>
-                        </td>
-                    </tr>
-                `}).join('')}
-                <tr class="total-row">
-                    <td><strong>TOTAL</strong></td>
-                    <td class="amount"><strong>${charges.reduce((sum, c) => sum + c.electricityCost, 0).toFixed(0)} Ar</strong></td>
-                    <td class="amount"><strong>${charges.reduce((sum, c) => sum + c.waterCost, 0).toFixed(0)} Ar</strong></td>
-                    <td class="amount"><strong>${total.toFixed(0)} Ar</strong></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-            </tbody>
-         </table>
-    `;
-    
+    container.innerHTML = `<table class="billing-table"><thead><tr><th>Colocataire</th><th>Électricité (Ar)</th><th>Eau (Ar)</th><th>Total (Ar)</th><th>Statut</th><th>Action</th></tr></thead><tbody>${charges.map(charge => { const percent = total > 0 ? ((charge.totalCost / total) * 100).toFixed(1) : 0; return `<tr><td><strong>${escapeHtml(charge.personName)}</strong></td><td class="amount">${charge.electricityCost.toFixed(0)} Ar</td><td class="amount">${charge.waterCost.toFixed(0)} Ar</td><td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong> (${percent}%)</td><td><span class="unpaid-badge" id="status-${charge.personId}">Non payé</span></td><td><button class="btn-glow" onclick="markAsPaid(${charge.personId})" style="padding: 5px 15px; font-size: 12px;"><i class="fas fa-check"></i> Payé</button></td></tr>`; }).join('')}<tr class="total-row"><td><strong>TOTAL</strong></td><td class="amount"><strong>${charges.reduce((sum, c) => sum + c.electricityCost, 0).toFixed(0)} Ar</strong></td><td class="amount"><strong>${charges.reduce((sum, c) => sum + c.waterCost, 0).toFixed(0)} Ar</strong></td><td class="amount"><strong>${total.toFixed(0)} Ar</strong></td><td></td><td></td></tr></tbody></table>`;
     console.log(`✅ Facturation mise à jour: ${charges.length} charges, total: ${total.toFixed(0)} Ar`);
 }
 
@@ -876,7 +995,7 @@ function markAsPaid(personId) {
         const charges = getTotalCharges();
         const charge = charges.find(c => c.personId === personId);
         if (charge && person) {
-            history.unshift({ date: new Date().toISOString(), period: period, personName: person.name, amount: charge.totalCost, type: 'paiement' });
+            history.unshift({ date: new Date().toISOString(), period, personName: person.name, amount: charge.totalCost, type: 'paiement' });
             saveData();
             updateHistory();
             saveMonthlyData();
@@ -889,13 +1008,7 @@ function updateHistory() {
     const container = document.getElementById('historyList');
     if (!container) return;
     if (history.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun historique disponible</p>'; return; }
-    container.innerHTML = history.map(item => `<div class="history-item">
-        <p><strong>📅 ${new Date(item.date).toLocaleDateString('fr-FR')}</strong> - ${item.period}</p>
-        <p>${item.type === 'facture' ? '📄 Facture générée' : '💰 Paiement enregistré'}</p>
-        ${item.personName ? `<p>👤 ${item.personName}</p>` : ''}
-        ${item.amount ? `<p>💵 Montant: ${item.amount.toFixed(0)} Ar</p>` : ''}
-        ${item.total ? `<p>📊 Total: ${item.total.toFixed(0)} Ar</p>` : ''}
-    </div>`).join('');
+    container.innerHTML = history.map(item => `<div class="history-item"><p><strong>📅 ${new Date(item.date).toLocaleDateString('fr-FR')}</strong> - ${item.period}</p><p>${item.type === 'facture' ? '📄 Facture générée' : '💰 Paiement enregistré'}</p>${item.personName ? `<p>👤 ${item.personName}</p>` : ''}${item.amount ? `<p>💵 Montant: ${item.amount.toFixed(0)} Ar</p>` : ''}${item.total ? `<p>📊 Total: ${item.total.toFixed(0)} Ar</p>` : ''}</div>`).join('');
 }
 
 function clearHistory() {
@@ -2140,175 +2253,21 @@ function generateInvoice() {
     showNotification('Facture générée avec succès !', 'success');
 }
 
-// ========================================
-// CONFIGURATION DES ÉCOUTEURS D'ÉVÉNEMENTS
-// ========================================
-
 function setupEventListeners() {
-    console.log("🎯 Initialisation des écouteurs d'événements...");
-    
-    // 1. Navigation
-    const navBtns = document.querySelectorAll('.nav-btn');
-    console.log(`📌 Navigation: ${navBtns.length} boutons trouvés`);
-    navBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-    
-    // 2. Période
-    const periodSelect = document.getElementById('period');
-    if (periodSelect) {
-        periodSelect.addEventListener('change', (e) => {
-            currentPeriod = e.target.value;
-            updateDashboard();
-            updateBilling();
-            updateHeaderStats();
-            showNotification('Période changée avec succès', 'success');
-        });
-        console.log("✅ Écouteur période ajouté");
-    } else {
-        console.warn("⚠️ Select période non trouvé");
-    }
-    
-    // 3. Formulaire Personne
-    const personForm = document.getElementById('personForm');
-    if (personForm) {
-        // Supprimer les anciens écouteurs pour éviter les doublons
-        const newPersonForm = personForm.cloneNode(true);
-        personForm.parentNode.replaceChild(newPersonForm, personForm);
-        
-        newPersonForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("📝 Formulaire PERSONNE soumis");
-            savePerson();
-        });
-        console.log("✅ Écouteur formulaire PERSONNE ajouté");
-    } else {
-        console.error("❌ Formulaire PERSONNE non trouvé !");
-    }
-    
-    // 4. Slider coefficient de présence
-    const coeffSlider = document.getElementById('personCoefficientSlider');
-    if (coeffSlider) {
-        coeffSlider.addEventListener('input', (e) => {
-            const coeffValue = document.getElementById('coefficientValue');
-            if (coeffValue) {
-                coeffValue.textContent = Math.round(e.target.value * 100) + '%';
-            }
-        });
-        console.log("✅ Écouteur slider coefficient ajouté");
-    }
-    
-    // 5. Formulaire Appareil
-    const applianceForm = document.getElementById('applianceForm');
-    if (applianceForm) {
-        // Supprimer les anciens écouteurs pour éviter les doublons
-        const newApplianceForm = applianceForm.cloneNode(true);
-        applianceForm.parentNode.replaceChild(newApplianceForm, applianceForm);
-        
-        newApplianceForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("📝 Formulaire APPAREIL soumis");
-            saveAppliance();
-        });
-        console.log("✅ Écouteur formulaire APPAREIL ajouté");
-    } else {
-        console.error("❌ Formulaire APPAREIL non trouvé !");
-    }
-    
-    // 6. Type d'appareil (individuel/partagé)
-    const applianceType = document.getElementById('applianceType');
-    if (applianceType) {
-        applianceType.addEventListener('change', (e) => {
-            const personSelectGroup = document.getElementById('personSelectGroup');
-            if (personSelectGroup) {
-                personSelectGroup.style.display = e.target.value === 'individual' ? 'block' : 'none';
-                console.log(`🔄 Type d'appareil changé: ${e.target.value}`);
-            }
-        });
-        console.log("✅ Écouteur type appareil ajouté");
-    }
-    
-    // 7. Méthode électricité
-    const elecMethodSelect = document.getElementById('elecMethod');
-    if (elecMethodSelect) {
-        elecMethodSelect.addEventListener('change', (e) => {
-            elecMethod = e.target.value;
-            updateBilling();
-            updateDashboard();
-            console.log(`🔄 Méthode électricité: ${elecMethod}`);
-        });
-        console.log("✅ Écouteur méthode électricité ajouté");
-    }
-    
-    // 8. Méthode eau
-    const waterMethodSelect = document.getElementById('waterMethod');
-    if (waterMethodSelect) {
-        waterMethodSelect.addEventListener('change', (e) => {
-            waterMethod = e.target.value;
-            updateBilling();
-            updateDashboard();
-            console.log(`🔄 Méthode eau: ${waterMethod}`);
-        });
-        console.log("✅ Écouteur méthode eau ajouté");
-    }
-    
-    // 9. Champs de facture électricité
-    const elecBillInput = document.getElementById('elecBillAmount');
-    const elecConsumptionInput = document.getElementById('elecConsumption');
-    if (elecBillInput) {
-        elecBillInput.addEventListener('input', () => {
-            console.log("🔄 Montant électricité modifié");
-            calculateActualPrices();
-        });
-        console.log("✅ Écouteur montant électricité ajouté");
-    }
-    if (elecConsumptionInput) {
-        elecConsumptionInput.addEventListener('input', () => {
-            console.log("🔄 Consommation électricité modifiée");
-            calculateActualPrices();
-        });
-        console.log("✅ Écouteur consommation électricité ajouté");
-    }
-    
-    // 10. Champs de facture eau
-    const waterBillInput = document.getElementById('waterBillAmount');
-    const waterConsumptionInput = document.getElementById('waterConsumption');
-    if (waterBillInput) {
-        waterBillInput.addEventListener('input', () => {
-            console.log("🔄 Montant eau modifié");
-            calculateActualPrices();
-        });
-        console.log("✅ Écouteur montant eau ajouté");
-    }
-    if (waterConsumptionInput) {
-        waterConsumptionInput.addEventListener('input', () => {
-            console.log("🔄 Consommation eau modifiée");
-            calculateActualPrices();
-        });
-        console.log("✅ Écouteur consommation eau ajouté");
-    }
-    
-    // 11. Tranches électricité
-    const elecTranchesEnabled = document.getElementById('elecTranchesEnabled');
-    if (elecTranchesEnabled) {
-        elecTranchesEnabled.addEventListener('change', () => {
-            console.log(`🔄 Tranches électricité: ${elecTranchesEnabled.value === 'true' ? 'activées' : 'désactivées'}`);
-            renderElecTranches();
-        });
-        console.log("✅ Écouteur tranches électricité ajouté");
-    }
-    
-    // 12. Tranches eau
-    const waterTranchesEnabled = document.getElementById('waterTranchesEnabled');
-    if (waterTranchesEnabled) {
-        waterTranchesEnabled.addEventListener('change', () => {
-            console.log(`🔄 Tranches eau: ${waterTranchesEnabled.value === 'true' ? 'activées' : 'désactivées'}`);
-            renderWaterTranches();
-        });
-        console.log("✅ Écouteur tranches eau ajouté");
-    }
-    
-    console.log("✅ Tous les écouteurs d'événements sont initialisés !");
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+    document.getElementById('period')?.addEventListener('change', (e) => { currentPeriod = e.target.value; updateDashboard(); updateBilling(); updateHeaderStats(); showNotification('Période changée avec succès', 'success'); });
+    document.getElementById('personForm')?.addEventListener('submit', (e) => { e.preventDefault(); savePerson(); });
+    document.getElementById('personCoefficientSlider')?.addEventListener('input', (e) => { document.getElementById('coefficientValue').textContent = Math.round(e.target.value * 100) + '%'; });
+    document.getElementById('applianceForm')?.addEventListener('submit', (e) => { e.preventDefault(); saveAppliance(); });
+    document.getElementById('applianceType')?.addEventListener('change', (e) => { document.getElementById('personSelectGroup').style.display = e.target.value === 'individual' ? 'block' : 'none'; });
+    document.getElementById('elecMethod')?.addEventListener('change', (e) => { elecMethod = e.target.value; updateBilling(); updateDashboard(); });
+    document.getElementById('waterMethod')?.addEventListener('change', (e) => { waterMethod = e.target.value; updateBilling(); updateDashboard(); });
+    document.getElementById('elecBillAmount')?.addEventListener('input', calculateActualPrices);
+    document.getElementById('elecConsumption')?.addEventListener('input', calculateActualPrices);
+    document.getElementById('waterBillAmount')?.addEventListener('input', calculateActualPrices);
+    document.getElementById('waterConsumption')?.addEventListener('input', calculateActualPrices);
+    document.getElementById('elecTranchesEnabled')?.addEventListener('change', () => renderElecTranches());
+    document.getElementById('waterTranchesEnabled')?.addEventListener('change', () => renderWaterTranches());
 }
 
 function sendQuickMessage(event) { event.preventDefault(); const name = event.target.querySelector('input[type="text"]')?.value; const email = event.target.querySelector('input[type="email"]')?.value; const message = event.target.querySelector('textarea')?.value; if (name && email && message) { showNotification(`Merci ${name} ! Votre message a été envoyé.`, 'success'); event.target.reset(); } else { showNotification('Veuillez remplir tous les champs', 'error'); } }
@@ -2946,4 +2905,3 @@ function deleteUserAccount(userId) {
         showNotification(`Compte de ${user.name} supprimé`, 'success');
     }
 }
-
