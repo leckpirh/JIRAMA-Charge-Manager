@@ -424,13 +424,76 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="script.js"></script>
-<!-- Ajoutez avant la fermeture de </body> -->
 <script>
-// Enregistrement du service worker pour PWA
+// ========================================
+// ENREGISTREMENT DU SERVICE WORKER
+// ========================================
+
+// Vérifier si le navigateur supporte les Service Workers
 if ('serviceWorker' in navigator) {
+    console.log('✅ Le navigateur supporte les Service Workers');
+    
+    // Enregistrer le Service Worker
     navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('Service Worker enregistré', reg))
-        .catch(err => console.error('Erreur Service Worker', err));
+        .then(registration => {
+            console.log('✅ Service Worker enregistré avec succès !');
+            console.log('📱 Scope:', registration.scope);
+            
+            // Vérifier les mises à jour
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('🔄 Nouvelle version du Service Worker détectée');
+                
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('💡 Une mise à jour est disponible !');
+                        showNotification('Une nouvelle version est disponible. Rafraîchissez la page.', 'info');
+                    }
+                });
+            });
+        })
+        .catch(error => {
+            console.error('❌ Erreur d\'enregistrement du Service Worker:', error);
+        });
+    
+    // Détecter les changements de connexion
+    let isOnline = navigator.onLine;
+    
+    window.addEventListener('online', () => {
+        console.log('📶 Connexion internet rétablie');
+        isOnline = true;
+        showNotification('Connexion rétablie !', 'success');
+        
+        // Rafraîchir les données si nécessaire
+        if (window.syncData) window.syncData();
+    });
+    
+    window.addEventListener('offline', () => {
+        console.log('📴 Mode hors ligne activé');
+        isOnline = false;
+        showNotification('Mode hors ligne - L\'application fonctionne sans internet', 'info');
+    });
+    
+    // Afficher l'état initial
+    if (!navigator.onLine) {
+        showNotification('Mode hors ligne - L\'application utilise les données en cache', 'info');
+    }
+    
+} else {
+    console.warn('⚠️ Ce navigateur ne supporte pas les Service Workers');
+    showNotification('Votre navigateur ne supporte pas le mode hors ligne', 'warning');
+}
+
+// Fonction pour afficher les notifications (si elle n'existe pas déjà)
+function showNotification(message, type) {
+    // Utilisez votre fonction showNotification existante
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, type);
+    } else {
+        // Fallback simple
+        console.log(`${type.toUpperCase()}: ${message}`);
+        alert(message);
+    }
 }
 </script>
 </body>
