@@ -2515,3 +2515,4 @@ function deleteUserAccount(userId) {
         showNotification(`Compte de ${user.name} supprimé`, 'success');
     }
 }
+
