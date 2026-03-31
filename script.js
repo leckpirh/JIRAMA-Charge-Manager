@@ -1924,3 +1924,43 @@ window.onclick = function(event) {
     if (event.target === guestModalEl && guestModalEl) closeGuestModal();
     if (event.target === balanceModalEl && balanceModalEl) closeBalanceModal();
 };
+
+// ========================================
+// INDICATEUR DE CONNEXION
+// ========================================
+
+function updateConnectionStatus() {
+    const statusDiv = document.getElementById('connectionStatus');
+    if (!statusDiv) return;
+    
+    if (navigator.onLine) {
+        statusDiv.className = 'connection-status online';
+        statusDiv.innerHTML = '<i class="fas fa-wifi"></i> Connecté - Données synchronisées';
+        
+        // Cacher après 3 secondes
+        setTimeout(() => {
+            if (statusDiv.className === 'connection-status online') {
+                statusDiv.style.opacity = '0';
+                setTimeout(() => {
+                    if (statusDiv.className === 'connection-status online') {
+                        statusDiv.style.display = 'none';
+                        statusDiv.style.opacity = '1';
+                    }
+                }, 500);
+            }
+        }, 3000);
+        
+        statusDiv.style.display = 'block';
+    } else {
+        statusDiv.className = 'connection-status offline';
+        statusDiv.innerHTML = '<i class="fas fa-plug"></i> Mode hors ligne - Modifications en attente de synchronisation';
+        statusDiv.style.display = 'block';
+    }
+}
+
+// Écouter les changements de connexion
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus);
+
+// Vérifier l'état initial
+updateConnectionStatus();
