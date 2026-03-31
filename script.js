@@ -1846,6 +1846,151 @@ function initOfflineMode() {
     if (!navigator.onLine) showNotification('Mode hors ligne actif', 'info');
 }
 
+// ========== SIMULATEUR BUDGET ==========
+
+function showBudgetSimulator() {
+    try {
+        // Vérifier que la variable persons existe
+        if (typeof persons === 'undefined' || persons.length === 0) {
+            if (typeof showNotification === 'function') {
+                showNotification('Ajoutez des colocataires pour utiliser le simulateur', 'error');
+            } else {
+                alert('Ajoutez des colocataires pour utiliser le simulateur');
+            }
+            return;
+        }
+        
+        // Vérifier que getTotalCharges existe
+        if (typeof getTotalCharges !== 'function') {
+            console.error("getTotalCharges non définie");
+            alert("Erreur: fonction getTotalCharges manquante");
+            return;
+        }
+        
+        const charges = getTotalCharges();
+        
+        // Vérifier que charges est valide
+        if (!charges || charges.length === 0) {
+            alert("Aucune charge trouvée");
+            return;
+        }
+        
+        const total = charges.reduce((sum, c) => sum + (c.totalCost || 0), 0);
+        
+        if (total === 0) {
+            alert("Aucune charge enregistrée");
+            return;
+        }
+        
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const [year, month] = period.split('-');
+        const monthName = monthNames[parseInt(month) - 1];
+        
+        // Fonction escapeHtml sécurisée
+        const safeEscapeHtml = (str) => {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        };
+        
+        const simulatorHTML = `<div style="padding: 20px;">
+            <h4 style="color: white;">Répartition du budget - ${monthName} ${year}</h4>
+            <canvas id="budgetChart" style="max-height: 300px; margin: 20px 0;"></canvas>
+            <div class="budget-details">
+                ${charges.map(charge => `<div style="margin: 10px 0; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 12px;">
+                    <strong style="color: #00d4ff;">${safeEscapeHtml(charge.personName)}</strong><br>
+                    <span style="color: white;">${((charge.totalCost / total) * 100).toFixed(1)}% du total</span>
+                    <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; margin-top: 8px;">
+                        <div style="background: #00d4ff; width: ${((charge.totalCost / total) * 100)}%; height: 8px; border-radius: 4px;"></div>
+                    </div>
+                </div>`).join('')}
+            </div>
+            <div style="text-align: center; margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #00d4ff, #0099cc); border-radius: 12px;">
+                <h4 style="margin: 0; color: white;">Budget total mensuel</h4>
+                <p style="font-size: 32px; font-weight: bold; margin: 10px 0 0; color: white;">${total.toFixed(0)} Ar</p>
+            </div>
+        </div>`;
+        
+        const budgetSimulatorDiv = document.getElementById('budgetSimulator');
+        if (budgetSimulatorDiv) {
+            budgetSimulatorDiv.innerHTML = simulatorHTML;
+        } else {
+            console.error("Element 'budgetSimulator' non trouvé");
+            alert("Erreur: élément budgetSimulator manquant");
+            return;
+        }
+        
+        const modal = document.getElementById('budgetModal');
+        if (modal) {
+            modal.style.display = 'block';
+        } else {
+            console.error("Element 'budgetModal' non trouvé");
+            alert("Erreur: modal budgetModal manquante");
+            return;
+        }
+        
+        // Afficher le graphique après un court délai
+        setTimeout(() => {
+            try {
+                const ctx = document.getElementById('budgetChart');
+                if (ctx && typeof Chart !== 'undefined') {
+                    if (budgetChart) {
+                        budgetChart.destroy();
+                    }
+                    budgetChart = new Chart(ctx, { 
+                        type: 'pie', 
+                        data: { 
+                            labels: charges.map(c => c.personName), 
+                            datasets: [{ 
+                                data: charges.map(c => c.totalCost), 
+                                backgroundColor: ['#00d4ff', '#0099cc', '#33ddff', '#66e6ff', '#99eeff', '#cceeff']
+                            }] 
+                        }, 
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: true,
+                            plugins: { 
+                                legend: { 
+                                    position: 'bottom', 
+                                    labels: { color: 'white' } 
+                                } 
+                            } 
+                        } 
+                    });
+                } else if (typeof Chart === 'undefined') {
+                    console.warn("Chart.js non chargé - graphique non affiché");
+                }
+            } catch (chartError) {
+                console.error("Erreur création graphique:", chartError);
+            }
+        }, 100);
+        
+    } catch (error) {
+        console.error("Erreur showBudgetSimulator:", error);
+        alert("Erreur lors de l'ouverture du simulateur: " + error.message);
+    }
+}
+
+function closeBudgetModal() { 
+    try {
+        const modal = document.getElementById('budgetModal');
+        if (modal) modal.style.display = 'none';
+        
+        // Nettoyer le graphique
+        if (budgetChart) {
+            budgetChart.destroy();
+            budgetChart = null;
+        }
+    } catch (error) {
+        console.error("Erreur closeBudgetModal:", error);
+    }
+}
+
 function generateInvoice() {
     if (persons.length === 0) { showNotification('Ajoutez des colocataires avant de générer une facture', 'error'); return; }
     const charges = getTotalCharges();
@@ -2308,147 +2453,4 @@ window.showBudgetSimulator = showBudgetSimulatorLazy;
 window.exportToExcel = exportToExcelLazy;
 window.openScanModal = openScanModalLazy;
 
-// ========== SIMULATEUR BUDGET ==========
 
-function showBudgetSimulator() {
-    try {
-        // Vérifier que la variable persons existe
-        if (typeof persons === 'undefined' || persons.length === 0) {
-            if (typeof showNotification === 'function') {
-                showNotification('Ajoutez des colocataires pour utiliser le simulateur', 'error');
-            } else {
-                alert('Ajoutez des colocataires pour utiliser le simulateur');
-            }
-            return;
-        }
-        
-        // Vérifier que getTotalCharges existe
-        if (typeof getTotalCharges !== 'function') {
-            console.error("getTotalCharges non définie");
-            alert("Erreur: fonction getTotalCharges manquante");
-            return;
-        }
-        
-        const charges = getTotalCharges();
-        
-        // Vérifier que charges est valide
-        if (!charges || charges.length === 0) {
-            alert("Aucune charge trouvée");
-            return;
-        }
-        
-        const total = charges.reduce((sum, c) => sum + (c.totalCost || 0), 0);
-        
-        if (total === 0) {
-            alert("Aucune charge enregistrée");
-            return;
-        }
-        
-        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
-        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-        const [year, month] = period.split('-');
-        const monthName = monthNames[parseInt(month) - 1];
-        
-        // Fonction escapeHtml sécurisée
-        const safeEscapeHtml = (str) => {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        };
-        
-        const simulatorHTML = `<div style="padding: 20px;">
-            <h4 style="color: white;">Répartition du budget - ${monthName} ${year}</h4>
-            <canvas id="budgetChart" style="max-height: 300px; margin: 20px 0;"></canvas>
-            <div class="budget-details">
-                ${charges.map(charge => `<div style="margin: 10px 0; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 12px;">
-                    <strong style="color: #00d4ff;">${safeEscapeHtml(charge.personName)}</strong><br>
-                    <span style="color: white;">${((charge.totalCost / total) * 100).toFixed(1)}% du total</span>
-                    <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; margin-top: 8px;">
-                        <div style="background: #00d4ff; width: ${((charge.totalCost / total) * 100)}%; height: 8px; border-radius: 4px;"></div>
-                    </div>
-                </div>`).join('')}
-            </div>
-            <div style="text-align: center; margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #00d4ff, #0099cc); border-radius: 12px;">
-                <h4 style="margin: 0; color: white;">Budget total mensuel</h4>
-                <p style="font-size: 32px; font-weight: bold; margin: 10px 0 0; color: white;">${total.toFixed(0)} Ar</p>
-            </div>
-        </div>`;
-        
-        const budgetSimulatorDiv = document.getElementById('budgetSimulator');
-        if (budgetSimulatorDiv) {
-            budgetSimulatorDiv.innerHTML = simulatorHTML;
-        } else {
-            console.error("Element 'budgetSimulator' non trouvé");
-            alert("Erreur: élément budgetSimulator manquant");
-            return;
-        }
-        
-        const modal = document.getElementById('budgetModal');
-        if (modal) {
-            modal.style.display = 'block';
-        } else {
-            console.error("Element 'budgetModal' non trouvé");
-            alert("Erreur: modal budgetModal manquante");
-            return;
-        }
-        
-        // Afficher le graphique après un court délai
-        setTimeout(() => {
-            try {
-                const ctx = document.getElementById('budgetChart');
-                if (ctx && typeof Chart !== 'undefined') {
-                    if (budgetChart) {
-                        budgetChart.destroy();
-                    }
-                    budgetChart = new Chart(ctx, { 
-                        type: 'pie', 
-                        data: { 
-                            labels: charges.map(c => c.personName), 
-                            datasets: [{ 
-                                data: charges.map(c => c.totalCost), 
-                                backgroundColor: ['#00d4ff', '#0099cc', '#33ddff', '#66e6ff', '#99eeff', '#cceeff']
-                            }] 
-                        }, 
-                        options: { 
-                            responsive: true, 
-                            maintainAspectRatio: true,
-                            plugins: { 
-                                legend: { 
-                                    position: 'bottom', 
-                                    labels: { color: 'white' } 
-                                } 
-                            } 
-                        } 
-                    });
-                } else if (typeof Chart === 'undefined') {
-                    console.warn("Chart.js non chargé - graphique non affiché");
-                }
-            } catch (chartError) {
-                console.error("Erreur création graphique:", chartError);
-            }
-        }, 100);
-        
-    } catch (error) {
-        console.error("Erreur showBudgetSimulator:", error);
-        alert("Erreur lors de l'ouverture du simulateur: " + error.message);
-    }
-}
-
-function closeBudgetModal() { 
-    try {
-        const modal = document.getElementById('budgetModal');
-        if (modal) modal.style.display = 'none';
-        
-        // Nettoyer le graphique
-        if (budgetChart) {
-            budgetChart.destroy();
-            budgetChart = null;
-        }
-    } catch (error) {
-        console.error("Erreur closeBudgetModal:", error);
-    }
-}
