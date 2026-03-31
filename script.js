@@ -49,10 +49,10 @@ let lastSyncDate = null;
 
 let calculationWorker = null;
 
-// Déclaration globale
+// Déclaration globale pour le scan
 let scanModal = null;
 
-// Déclaration globale pour le graphique
+// Déclaration globale pour le graphique budget
 let budgetChart = null;
 
 let currentUser = null;
@@ -60,9 +60,7 @@ let users = [
     { id: 1, username: 'admin', password: 'jcm0146!', role: 'admin', name: 'Administrateur' },
     { id: 2, username: 'rakoto', password: 'rakoto123', role: 'user', name: 'Rakoto Jean', email: 'rakoto@email.com', personId: 1 },
     { id: 3, username: 'raso', password: 'raso123', role: 'user', name: 'Raso Marie', email: 'marie@email.com', personId: 2 },
-    { id: 4, username: 'ferdinand', password: 'ferdinand0146', role: 'admin', name: 'Ferdinand R.', email: 'ferdinandp25la.sesame@gmail.com', personId: 3 },
-    { id: 5, username: 'votre_nom', password: 'votre_mdp', role: 'admin', name: 'Votre Nom' },
-    { id: 4, username: 'votre_nom', password: 'votre_mdp', role: 'user', name: 'Votre Nom' }
+    { id: 4, username: 'ferdinand', password: 'ferdinand0146', role: 'admin', name: 'Ferdinand R.', email: 'ferdinandp25la.sesame@gmail.com', personId: 3 }
 ];
 
 // ========================================
@@ -75,25 +73,40 @@ function escapeHtml(str) {
 }
 
 function showNotification(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `toast-notification ${type}`;
-    toast.innerHTML = `<div class="toast-icon"><i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i></div>
-        <div class="toast-content"><strong>${type === 'success' ? 'Succès' : 'Information'}</strong><p>${message}</p></div>
-        <div class="toast-progress"></div>`;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-        toast.style.animation = 'slideOutRight 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    try {
+        // Supprimer les anciennes notifications
+        const oldToasts = document.querySelectorAll('.toast-notification');
+        oldToasts.forEach(toast => toast.remove());
+        
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type}`;
+        toast.innerHTML = `<div class="toast-icon"><i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i></div>
+            <div class="toast-content"><strong>${type === 'success' ? 'Succès' : 'Information'}</strong><p>${message}</p></div>
+            <div class="toast-progress"></div>`;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast && toast.remove) toast.remove();
+        }, 3000);
+    } catch (error) {
+        console.warn("Erreur notification:", error);
+        alert(message);
+    }
 }
 
 function switchTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(tabId)?.classList.add('active');
-    document.querySelector(`.nav-btn[data-tab="${tabId}"]`)?.classList.add('active');
-    if (tabId === 'billing') updateBilling();
-    if (tabId === 'history') updateHistory();
+    try {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        const targetTab = document.getElementById(tabId);
+        if (targetTab) targetTab.classList.add('active');
+        const targetBtn = document.querySelector(`.nav-btn[data-tab="${tabId}"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+        if (tabId === 'billing') updateBilling();
+        if (tabId === 'history') updateHistory();
+    } catch (error) {
+        console.error("Erreur switchTab:", error);
+    }
 }
 
 // ========================================
@@ -140,300 +153,380 @@ function generatePeriodOptions() {
 }
 
 function calculateActualPrices() {
-    const elecBill = parseFloat(document.getElementById('elecBillAmount')?.value) || 0;
-    const elecKwh = parseFloat(document.getElementById('elecConsumption')?.value) || 0;
-    const waterBill = parseFloat(document.getElementById('waterBillAmount')?.value) || 0;
-    const waterM3 = parseFloat(document.getElementById('waterConsumption')?.value) || 0;
-    
-    if (elecKwh > 0 && elecBill > 0) {
-        actualPricePerKwh = elecBill / elecKwh;
-        const actualPriceElem = document.getElementById('actualPricePerKwh');
-        if (actualPriceElem) actualPriceElem.textContent = actualPricePerKwh.toFixed(2) + ' Ar/kWh';
-    } else {
-        actualPricePerKwh = 0;
-        const actualPriceElem = document.getElementById('actualPricePerKwh');
-        if (actualPriceElem) actualPriceElem.textContent = 'En attente des données';
-    }
-    
-    if (waterM3 > 0 && waterBill > 0) {
-        actualPricePerM3 = waterBill / waterM3;
-        const actualPriceElem = document.getElementById('actualPricePerM3');
-        if (actualPriceElem) actualPriceElem.textContent = actualPricePerM3.toFixed(2) + ' Ar/m³';
-    } else {
-        actualPricePerM3 = 0;
-        const actualPriceElem = document.getElementById('actualPricePerM3');
-        if (actualPriceElem) actualPriceElem.textContent = 'En attente des données';
+    try {
+        const elecBillInput = document.getElementById('elecBillAmount');
+        const elecKwhInput = document.getElementById('elecConsumption');
+        const waterBillInput = document.getElementById('waterBillAmount');
+        const waterM3Input = document.getElementById('waterConsumption');
+        
+        const elecBill = parseFloat(elecBillInput?.value) || 0;
+        const elecKwh = parseFloat(elecKwhInput?.value) || 0;
+        const waterBill = parseFloat(waterBillInput?.value) || 0;
+        const waterM3 = parseFloat(waterM3Input?.value) || 0;
+        
+        elecBillAmount = elecBill;
+        waterBillAmount = waterBill;
+        elecConsumption = elecKwh;
+        waterConsumption = waterM3;
+        
+        if (elecKwh > 0 && elecBill > 0) {
+            actualPricePerKwh = elecBill / elecKwh;
+            const actualPriceElem = document.getElementById('actualPricePerKwh');
+            if (actualPriceElem) actualPriceElem.textContent = actualPricePerKwh.toFixed(2) + ' Ar/kWh';
+        } else {
+            actualPricePerKwh = 0;
+            const actualPriceElem = document.getElementById('actualPricePerKwh');
+            if (actualPriceElem) actualPriceElem.textContent = 'En attente des données';
+        }
+        
+        if (waterM3 > 0 && waterBill > 0) {
+            actualPricePerM3 = waterBill / waterM3;
+            const actualPriceElem = document.getElementById('actualPricePerM3');
+            if (actualPriceElem) actualPriceElem.textContent = actualPricePerM3.toFixed(2) + ' Ar/m³';
+        } else {
+            actualPricePerM3 = 0;
+            const actualPriceElem = document.getElementById('actualPricePerM3');
+            if (actualPriceElem) actualPriceElem.textContent = 'En attente des données';
+        }
+    } catch (error) {
+        console.error("Erreur calculateActualPrices:", error);
     }
 }
 
 function calculateElectricityCost(consumptionKwh) {
-    if (elecMethod === 'basedOnBill' && actualPricePerKwh > 0 && !elecTranchesEnabled) {
-        return consumptionKwh * actualPricePerKwh;
-    }
-    if (!elecTranchesEnabled || electricityTranches.length === 0) {
-        return consumptionKwh * actualPricePerKwh;
-    }
-    let remaining = consumptionKwh;
-    let totalCost = 0;
-    let sortedTranches = [...electricityTranches].sort((a, b) => a.min - b.min);
-    for (let tranche of sortedTranches) {
-        if (remaining <= 0) break;
-        let trancheMax = tranche.max === Infinity ? Infinity : tranche.max;
-        let trancheSize = trancheMax === Infinity ? Infinity : trancheMax - tranche.min + 1;
-        if (trancheMax === Infinity) {
-            totalCost += remaining * tranche.price;
-            break;
+    try {
+        if (elecMethod === 'basedOnBill' && actualPricePerKwh > 0 && !elecTranchesEnabled) {
+            return consumptionKwh * actualPricePerKwh;
         }
-        let consumptionInTranche = Math.min(remaining, trancheSize);
-        totalCost += consumptionInTranche * tranche.price;
-        remaining -= consumptionInTranche;
+        if (!elecTranchesEnabled || electricityTranches.length === 0) {
+            return consumptionKwh * (actualPricePerKwh || 550);
+        }
+        let remaining = consumptionKwh;
+        let totalCost = 0;
+        let sortedTranches = [...electricityTranches].sort((a, b) => a.min - b.min);
+        for (let tranche of sortedTranches) {
+            if (remaining <= 0) break;
+            let trancheMax = tranche.max === Infinity ? Infinity : tranche.max;
+            let trancheSize = trancheMax === Infinity ? Infinity : trancheMax - tranche.min + 1;
+            if (trancheMax === Infinity) {
+                totalCost += remaining * tranche.price;
+                break;
+            }
+            let consumptionInTranche = Math.min(remaining, trancheSize);
+            totalCost += consumptionInTranche * tranche.price;
+            remaining -= consumptionInTranche;
+        }
+        return totalCost;
+    } catch (error) {
+        console.error("Erreur calculateElectricityCost:", error);
+        return consumptionKwh * 550;
     }
-    return totalCost;
 }
 
 function calculateWaterCost(consumptionM3) {
-    if (!waterTranchesEnabled || waterTranches.length === 0) {
-        return consumptionM3 * actualPricePerM3;
-    }
-    let remaining = consumptionM3;
-    let totalCost = 0;
-    let sortedTranches = [...waterTranches].sort((a, b) => a.min - b.min);
-    for (let tranche of sortedTranches) {
-        if (remaining <= 0) break;
-        let trancheMax = tranche.max === Infinity ? Infinity : tranche.max;
-        let trancheSize = trancheMax === Infinity ? Infinity : trancheMax - tranche.min + 1;
-        if (trancheMax === Infinity) {
-            totalCost += remaining * tranche.price;
-            break;
+    try {
+        if (!waterTranchesEnabled || waterTranches.length === 0) {
+            return consumptionM3 * (actualPricePerM3 || 2500);
         }
-        let consumptionInTranche = Math.min(remaining, trancheSize);
-        totalCost += consumptionInTranche * tranche.price;
-        remaining -= consumptionInTranche;
+        let remaining = consumptionM3;
+        let totalCost = 0;
+        let sortedTranches = [...waterTranches].sort((a, b) => a.min - b.min);
+        for (let tranche of sortedTranches) {
+            if (remaining <= 0) break;
+            let trancheMax = tranche.max === Infinity ? Infinity : tranche.max;
+            let trancheSize = trancheMax === Infinity ? Infinity : trancheMax - tranche.min + 1;
+            if (trancheMax === Infinity) {
+                totalCost += remaining * tranche.price;
+                break;
+            }
+            let consumptionInTranche = Math.min(remaining, trancheSize);
+            totalCost += consumptionInTranche * tranche.price;
+            remaining -= consumptionInTranche;
+        }
+        return totalCost;
+    } catch (error) {
+        console.error("Erreur calculateWaterCost:", error);
+        return consumptionM3 * 2500;
     }
-    return totalCost;
 }
 
 function calculateElectricityCharges() {
-    const totalPersonsCoefficient = persons.reduce((sum, p) => sum + p.coefficient, 0);
-    const results = [];
-    if (elecMethod === 'basedOnBill' && elecBillAmount > 0) {
-        const totalCost = elecBillAmount;
-        persons.forEach(person => {
-            const share = totalPersonsCoefficient > 0 ? (totalCost / totalPersonsCoefficient) * person.coefficient : 0;
-            results.push({ personId: person.id, personName: person.name, coefficient: person.coefficient, individualCost: 0, sharedCost: share, totalElectricity: share });
-        });
-    } else {
-        persons.forEach(person => {
-            let individualCost = 0, sharedCost = 0;
-            const individualAppliances = appliances.filter(a => a.type === 'individual' && a.personId === person.id);
-            individualAppliances.forEach(appliance => { individualCost += calculateElectricityCost(appliance.consumption); });
-            const sharedAppliances = appliances.filter(a => a.type === 'shared');
-            sharedAppliances.forEach(appliance => {
-                const cost = calculateElectricityCost(appliance.consumption) / (totalPersonsCoefficient || 1);
-                sharedCost += cost * person.coefficient;
+    try {
+        const totalPersonsCoefficient = persons.reduce((sum, p) => sum + (p.coefficient || 1), 0);
+        const results = [];
+        if (elecMethod === 'basedOnBill' && elecBillAmount > 0) {
+            const totalCost = elecBillAmount;
+            persons.forEach(person => {
+                const share = totalPersonsCoefficient > 0 ? (totalCost / totalPersonsCoefficient) * (person.coefficient || 1) : 0;
+                results.push({ personId: person.id, personName: person.name, coefficient: person.coefficient || 1, individualCost: 0, sharedCost: share, totalElectricity: share });
             });
-            results.push({ personId: person.id, personName: person.name, coefficient: person.coefficient, individualCost, sharedCost, totalElectricity: individualCost + sharedCost });
-        });
+        } else {
+            persons.forEach(person => {
+                let individualCost = 0, sharedCost = 0;
+                const individualAppliances = appliances.filter(a => a.type === 'individual' && a.personId === person.id);
+                individualAppliances.forEach(appliance => { individualCost += calculateElectricityCost(appliance.consumption || 0); });
+                const sharedAppliances = appliances.filter(a => a.type === 'shared');
+                sharedAppliances.forEach(appliance => {
+                    const cost = calculateElectricityCost(appliance.consumption || 0) / (totalPersonsCoefficient || 1);
+                    sharedCost += cost * (person.coefficient || 1);
+                });
+                results.push({ personId: person.id, personName: person.name, coefficient: person.coefficient || 1, individualCost, sharedCost, totalElectricity: individualCost + sharedCost });
+            });
+        }
+        return results;
+    } catch (error) {
+        console.error("Erreur calculateElectricityCharges:", error);
+        return persons.map(p => ({ personId: p.id, personName: p.name, coefficient: 1, individualCost: 0, sharedCost: 0, totalElectricity: 0 }));
     }
-    return results;
 }
 
 function calculateWaterCharges() {
-    const totalCoefficient = persons.reduce((sum, p) => sum + p.coefficient, 0);
-    const totalWaterCost = waterBillAmount > 0 ? waterBillAmount : calculateWaterCost(waterConsumption);
-    if (waterMethod === 'basedOnConsumption') {
-        return persons.map(person => ({ personId: person.id, personName: person.name, coefficient: person.coefficient, waterCost: totalCoefficient > 0 ? (totalWaterCost / totalCoefficient) * person.coefficient : 0 }));
-    } else {
-        return persons.map(person => ({ personId: person.id, personName: person.name, coefficient: person.coefficient, waterCost: persons.length > 0 ? totalWaterCost / persons.length : 0 }));
+    try {
+        const totalCoefficient = persons.reduce((sum, p) => sum + (p.coefficient || 1), 0);
+        const totalWaterCost = waterBillAmount > 0 ? waterBillAmount : calculateWaterCost(waterConsumption);
+        if (waterMethod === 'basedOnConsumption') {
+            return persons.map(person => ({ personId: person.id, personName: person.name, coefficient: person.coefficient || 1, waterCost: totalCoefficient > 0 ? (totalWaterCost / totalCoefficient) * (person.coefficient || 1) : 0 }));
+        } else {
+            return persons.map(person => ({ personId: person.id, personName: person.name, coefficient: person.coefficient || 1, waterCost: persons.length > 0 ? totalWaterCost / persons.length : 0 }));
+        }
+    } catch (error) {
+        console.error("Erreur calculateWaterCharges:", error);
+        return persons.map(p => ({ personId: p.id, personName: p.name, coefficient: 1, waterCost: 0 }));
     }
 }
 
 function getTotalCharges() {
-    const elecCharges = calculateElectricityCharges();
-    const waterCharges = calculateWaterCharges();
-    return persons.map(person => {
-        const elec = elecCharges.find(e => e.personId === person.id);
-        const water = waterCharges.find(w => w.personId === person.id);
-        return { personId: person.id, personName: person.name, electricityCost: elec ? elec.totalElectricity : 0, waterCost: water ? water.waterCost : 0, totalCost: (elec ? elec.totalElectricity : 0) + (water ? water.waterCost : 0) };
-    });
+    try {
+        const elecCharges = calculateElectricityCharges();
+        const waterCharges = calculateWaterCharges();
+        return persons.map(person => {
+            const elec = elecCharges.find(e => e.personId === person.id);
+            const water = waterCharges.find(w => w.personId === person.id);
+            return { personId: person.id, personName: person.name, electricityCost: elec ? elec.totalElectricity : 0, waterCost: water ? water.waterCost : 0, totalCost: (elec ? elec.totalElectricity : 0) + (water ? water.waterCost : 0) };
+        });
+    } catch (error) {
+        console.error("Erreur getTotalCharges:", error);
+        return [];
+    }
 }
 
-// Modifier saveData pour inclure les utilisateurs
 function saveData() {
-    const data = {
-        persons,
-        appliances,
-        commonExpenses,
-        evolutionData,
-        guests,
-        virtualAccounts,
-        users,  // Ajouter les utilisateurs
-        elecBillAmount,
-        waterBillAmount,
-        elecConsumption,
-        waterConsumption,
-        elecMethod,
-        waterMethod,
-        elecTranchesEnabled,
-        waterTranchesEnabled,
-        electricityTranches,
-        waterTranches,
-        history
-    };
-    localStorage.setItem('jiramaChargeManager', JSON.stringify(data));
+    try {
+        const data = {
+            persons,
+            appliances,
+            commonExpenses,
+            evolutionData,
+            guests,
+            virtualAccounts,
+            users,
+            elecBillAmount,
+            waterBillAmount,
+            elecConsumption,
+            waterConsumption,
+            elecMethod,
+            waterMethod,
+            elecTranchesEnabled,
+            waterTranchesEnabled,
+            electricityTranches,
+            waterTranches,
+            history
+        };
+        localStorage.setItem('jiramaChargeManager', JSON.stringify(data));
+    } catch (error) {
+        console.error("Erreur saveData:", error);
+    }
 }
 
-// Modifier loadData pour charger les utilisateurs
 function loadData() {
-    const savedData = localStorage.getItem('jiramaChargeManager');
-    if (savedData) {
-        const data = JSON.parse(savedData);
-        persons = data.persons || [];
-        appliances = data.appliances || [];
-        commonExpenses = data.commonExpenses || [];
-        evolutionData = data.evolutionData || [];
-        guests = data.guests || [];
-        virtualAccounts = data.virtualAccounts || {};
-        users = data.users || [  // Charger les utilisateurs
-            { id: 1, username: 'admin', password: 'admin123', role: 'admin', name: 'Administrateur' }
-        ];
-        // ... reste du code
-    } else {
+    try {
+        const savedData = localStorage.getItem('jiramaChargeManager');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            persons = data.persons || [];
+            appliances = data.appliances || [];
+            commonExpenses = data.commonExpenses || [];
+            evolutionData = data.evolutionData || [];
+            guests = data.guests || [];
+            virtualAccounts = data.virtualAccounts || {};
+            users = data.users || [
+                { id: 1, username: 'admin', password: 'jcm0146!', role: 'admin', name: 'Administrateur' }
+            ];
+            elecBillAmount = data.elecBillAmount || 0;
+            waterBillAmount = data.waterBillAmount || 0;
+            elecConsumption = data.elecConsumption || 0;
+            waterConsumption = data.waterConsumption || 0;
+            elecMethod = data.elecMethod || 'basedOnBill';
+            waterMethod = data.waterMethod || 'equitable';
+            elecTranchesEnabled = data.elecTranchesEnabled || false;
+            waterTranchesEnabled = data.waterTranchesEnabled || false;
+            electricityTranches = data.electricityTranches || [];
+            waterTranches = data.waterTranches || [];
+            history = data.history || [];
+        }
+        
+        if (persons.length === 0) {
+            persons = [
+                { id: 1, name: 'Rakoto Jean', email: 'rakoto@email.com', phone: '032XXXXXXX', coefficient: 1 },
+                { id: 2, name: 'Raso Marie', email: 'marie@email.com', phone: '033XXXXXXX', coefficient: 0.8 }
+            ];
+        }
+        
+        if (electricityTranches.length === 0) initDefaultTranches();
+        if (waterTranches.length === 0) initDefaultTranches();
+        
+        loadSettings();
+    } catch (error) {
+        console.error("Erreur loadData:", error);
         persons = [
             { id: 1, name: 'Rakoto Jean', email: 'rakoto@email.com', phone: '032XXXXXXX', coefficient: 1 },
             { id: 2, name: 'Raso Marie', email: 'marie@email.com', phone: '033XXXXXXX', coefficient: 0.8 }
         ];
-        appliances = [];
-        waterConsumption = 12;
-        users = [
-            { id: 1, username: 'admin', password: 'admin123', role: 'admin', name: 'Administrateur' },
-            { id: 2, username: 'rakoto', password: 'rakoto123', role: 'user', name: 'Rakoto Jean', email: 'rakoto@email.com', personId: 1 },
-            { id: 3, username: 'raso', password: 'raso123', role: 'user', name: 'Raso Marie', email: 'marie@email.com', personId: 2 }
-        ];
         initDefaultTranches();
     }
-    loadSettings();
 }
-
 
 // ========================================
 // PERSONNES
 // ========================================
 
 function updatePersonSelect() {
-    const select = document.getElementById('appliancePersonId');
-    if (select) select.innerHTML = persons.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    try {
+        const select = document.getElementById('appliancePersonId');
+        if (select) select.innerHTML = persons.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    } catch (error) {
+        console.error("Erreur updatePersonSelect:", error);
+    }
 }
 
 function updatePersonsList() {
-    const container = document.getElementById('personsList');
-    if (!container) return;
-    if (persons.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun colocataire enregistré</p>'; return; }
-    container.innerHTML = persons.map(person => `
-        <div class="person-card">
-            <h3><i class="fas fa-user-circle"></i> ${escapeHtml(person.name)}</h3>
-            <p><i class="fas fa-envelope"></i> ${escapeHtml(person.email || 'Non renseigné')}</p>
-            <p><i class="fas fa-phone"></i> ${escapeHtml(person.phone || 'Non renseigné')}</p>
-            <p><i class="fas fa-chart-line"></i> Présence: ${person.coefficient * 100}%</p>
-            <div class="card-actions">
-                <button class="btn-icon edit" onclick="showPersonModal(${person.id})"><i class="fas fa-edit"></i> Modifier</button>
-                <button class="btn-icon delete" onclick="deletePerson(${person.id})"><i class="fas fa-trash"></i> Supprimer</button>
+    try {
+        const container = document.getElementById('personsList');
+        if (!container) return;
+        if (persons.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun colocataire enregistré</p>'; return; }
+        container.innerHTML = persons.map(person => `
+            <div class="person-card">
+                <h3><i class="fas fa-user-circle"></i> ${escapeHtml(person.name)}</h3>
+                <p><i class="fas fa-envelope"></i> ${escapeHtml(person.email || 'Non renseigné')}</p>
+                <p><i class="fas fa-phone"></i> ${escapeHtml(person.phone || 'Non renseigné')}</p>
+                <p><i class="fas fa-chart-line"></i> Présence: ${(person.coefficient || 1) * 100}%</p>
+                <div class="card-actions">
+                    <button class="btn-icon edit" onclick="showPersonModal(${person.id})"><i class="fas fa-edit"></i> Modifier</button>
+                    <button class="btn-icon delete" onclick="deletePerson(${person.id})"><i class="fas fa-trash"></i> Supprimer</button>
+                </div>
             </div>
-        </div>
-    `).join('');
-    updatePersonSelect();
+        `).join('');
+        updatePersonSelect();
+    } catch (error) {
+        console.error("Erreur updatePersonsList:", error);
+    }
 }
 
 function showPersonModal(personId = null) {
-    const modal = document.getElementById('personModal');
-    const title = document.getElementById('personModalTitle');
-    if (personId !== null) {
-        const person = persons.find(p => p.id === personId);
-        if (person) {
-            title.innerHTML = '<i class="fas fa-user-edit"></i> Modifier un colocataire';
-            document.getElementById('personId').value = person.id;
-            document.getElementById('personName').value = person.name;
-            document.getElementById('personEmail').value = person.email || '';
-            document.getElementById('personPhone').value = person.phone || '';
-            document.getElementById('personCoefficientSlider').value = person.coefficient;
-            document.getElementById('coefficientValue').textContent = Math.round(person.coefficient * 100) + '%';
+    try {
+        const modal = document.getElementById('personModal');
+        const title = document.getElementById('personModalTitle');
+        if (personId !== null) {
+            const person = persons.find(p => p.id === personId);
+            if (person) {
+                title.innerHTML = '<i class="fas fa-user-edit"></i> Modifier un colocataire';
+                document.getElementById('personId').value = person.id;
+                document.getElementById('personName').value = person.name;
+                document.getElementById('personEmail').value = person.email || '';
+                document.getElementById('personPhone').value = person.phone || '';
+                document.getElementById('personCoefficientSlider').value = person.coefficient || 1;
+                document.getElementById('coefficientValue').textContent = Math.round((person.coefficient || 1) * 100) + '%';
+            }
+        } else {
+            title.innerHTML = '<i class="fas fa-user-plus"></i> Ajouter un colocataire';
+            const form = document.getElementById('personForm');
+            if (form) form.reset();
+            document.getElementById('personId').value = '';
+            document.getElementById('personCoefficientSlider').value = 1;
+            document.getElementById('coefficientValue').textContent = '100%';
         }
-    } else {
-        title.innerHTML = '<i class="fas fa-user-plus"></i> Ajouter un colocataire';
-        document.getElementById('personForm').reset();
-        document.getElementById('personId').value = '';
-        document.getElementById('personCoefficientSlider').value = 1;
-        document.getElementById('coefficientValue').textContent = '100%';
+        if (modal) modal.style.display = 'block';
+    } catch (error) {
+        console.error("Erreur showPersonModal:", error);
     }
-    modal.style.display = 'block';
 }
 
-function closePersonModal() { document.getElementById('personModal').style.display = 'none'; }
+function closePersonModal() { 
+    const modal = document.getElementById('personModal');
+    if (modal) modal.style.display = 'none';
+}
 
 function savePerson() {
-    const id = document.getElementById('personId').value;
-    const personData = {
-        id: id ? parseInt(id) : Date.now(),
-        name: document.getElementById('personName').value,
-        email: document.getElementById('personEmail').value,
-        phone: document.getElementById('personPhone').value,
-        coefficient: parseFloat(document.getElementById('personCoefficientSlider').value)
-    };
-    
-    if (!personData.name) {
-        showNotification('Veuillez entrer un nom', 'error');
-        return;
-    }
-    
-    if (id) {
-        const index = persons.findIndex(p => p.id === parseInt(id));
-        persons[index] = personData;
-        showNotification('Colocataire modifié avec succès', 'success');
-    } else {
-        persons.push(personData);
+    try {
+        const id = document.getElementById('personId').value;
+        const personData = {
+            id: id ? parseInt(id) : Date.now(),
+            name: document.getElementById('personName')?.value || '',
+            email: document.getElementById('personEmail')?.value || '',
+            phone: document.getElementById('personPhone')?.value || '',
+            coefficient: parseFloat(document.getElementById('personCoefficientSlider')?.value || 1)
+        };
         
-        // Créer automatiquement un compte utilisateur pour le nouveau colocataire
-        const username = personData.name.toLowerCase().replace(/\s/g, '');
-        const defaultPassword = 'jirama123';
-        
-        // Vérifier si l'utilisateur n'existe pas déjà
-        const userExists = users.find(u => u.username === username);
-        if (!userExists && personData.email) {
-            users.push({
-                id: users.length + 1,
-                username: username,
-                password: defaultPassword,
-                role: 'user',
-                name: personData.name,
-                email: personData.email,
-                personId: personData.id
-            });
-            showNotification(`Compte créé pour ${personData.name} (mot de passe: ${defaultPassword})`, 'success');
+        if (!personData.name) {
+            showNotification('Veuillez entrer un nom', 'error');
+            return;
         }
         
-        showNotification('Colocataire ajouté avec succès', 'success');
-    }
-    
-    saveData();
-    updatePersonsList();
-    updateDashboard();
-    updateBilling();
-    updateEmailList();
-    updateUsersList();
-    closePersonModal();
-}
-
-function deletePerson(id) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cette personne ?')) {
-        persons = persons.filter(p => p.id !== id);
-        appliances = appliances.filter(a => a.personId !== id);
+        if (id) {
+            const index = persons.findIndex(p => p.id === parseInt(id));
+            if (index !== -1) persons[index] = personData;
+            showNotification('Colocataire modifié avec succès', 'success');
+        } else {
+            persons.push(personData);
+            
+            const username = personData.name.toLowerCase().replace(/\s/g, '');
+            const defaultPassword = 'jirama123';
+            
+            const userExists = users.find(u => u.username === username);
+            if (!userExists && personData.email) {
+                users.push({
+                    id: users.length + 1,
+                    username: username,
+                    password: defaultPassword,
+                    role: 'user',
+                    name: personData.name,
+                    email: personData.email,
+                    personId: personData.id
+                });
+                showNotification(`Compte créé pour ${personData.name} (mot de passe: ${defaultPassword})`, 'success');
+            }
+            
+            showNotification('Colocataire ajouté avec succès', 'success');
+        }
+        
         saveData();
         updatePersonsList();
-        updateAppliancesList();
         updateDashboard();
         updateBilling();
         updateEmailList();
-        showNotification('Colocataire supprimé', 'success');
+        updateUsersList();
+        closePersonModal();
+    } catch (error) {
+        console.error("Erreur savePerson:", error);
+        showNotification('Erreur lors de la sauvegarde', 'error');
+    }
+}
+
+function deletePerson(id) {
+    try {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cette personne ?')) {
+            persons = persons.filter(p => p.id !== id);
+            appliances = appliances.filter(a => a.personId !== id);
+            saveData();
+            updatePersonsList();
+            updateAppliancesList();
+            updateDashboard();
+            updateBilling();
+            updateEmailList();
+            showNotification('Colocataire supprimé', 'success');
+        }
+    } catch (error) {
+        console.error("Erreur deletePerson:", error);
     }
 }
 
@@ -442,138 +535,167 @@ function deletePerson(id) {
 // ========================================
 
 function updateAppliancesList() {
-    const container = document.getElementById('appliancesList');
-    if (!container) return;
-    if (appliances.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun appareil enregistré</p>'; return; }
-    container.innerHTML = appliances.map(appliance => {
-        const consumption = appliance.consumption.toFixed(2);
-        const cost = calculateElectricityCost(appliance.consumption).toFixed(0);
-        const person = appliance.personId ? persons.find(p => p.id === appliance.personId) : null;
-        return `<div class="appliance-card">
-            <h3><i class="fas fa-plug"></i> ${escapeHtml(appliance.name)}</h3>
-            <p><i class="fas fa-bolt"></i> Puissance: ${appliance.power} W</p>
-            <p><i class="fas fa-clock"></i> ${appliance.hoursPerDay}h/jour, ${appliance.daysPerMonth} jours/mois</p>
-            <p><i class="fas fa-chart-line"></i> Consommation: ${consumption} kWh/mois</p>
-            <p><i class="fas fa-euro-sign"></i> Coût: ${cost} Ar</p>
-            <p><i class="fas fa-tag"></i> Type: ${appliance.type === 'individual' ? 'Individuel' : 'Partagé'}</p>
-            ${person ? `<p><i class="fas fa-user"></i> Assigné à: ${escapeHtml(person.name)}</p>` : ''}
-            <div class="card-actions">
-                <button class="btn-icon edit" onclick="showApplianceModal(${appliance.id})"><i class="fas fa-edit"></i> Modifier</button>
-                <button class="btn-icon delete" onclick="deleteAppliance(${appliance.id})"><i class="fas fa-trash"></i> Supprimer</button>
-            </div>
-        </div>`;
-    }).join('');
+    try {
+        const container = document.getElementById('appliancesList');
+        if (!container) return;
+        if (appliances.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun appareil enregistré</p>'; return; }
+        container.innerHTML = appliances.map(appliance => {
+            const consumption = (appliance.consumption || 0).toFixed(2);
+            const cost = calculateElectricityCost(appliance.consumption || 0).toFixed(0);
+            const person = appliance.personId ? persons.find(p => p.id === appliance.personId) : null;
+            return `<div class="appliance-card">
+                <h3><i class="fas fa-plug"></i> ${escapeHtml(appliance.name)}</h3>
+                <p><i class="fas fa-bolt"></i> Puissance: ${appliance.power || 0} W</p>
+                <p><i class="fas fa-clock"></i> ${appliance.hoursPerDay || 0}h/jour, ${appliance.daysPerMonth || 0} jours/mois</p>
+                <p><i class="fas fa-chart-line"></i> Consommation: ${consumption} kWh/mois</p>
+                <p><i class="fas fa-euro-sign"></i> Coût: ${cost} Ar</p>
+                <p><i class="fas fa-tag"></i> Type: ${appliance.type === 'individual' ? 'Individuel' : 'Partagé'}</p>
+                ${person ? `<p><i class="fas fa-user"></i> Assigné à: ${escapeHtml(person.name)}</p>` : ''}
+                <div class="card-actions">
+                    <button class="btn-icon edit" onclick="showApplianceModal(${appliance.id})"><i class="fas fa-edit"></i> Modifier</button>
+                    <button class="btn-icon delete" onclick="deleteAppliance(${appliance.id})"><i class="fas fa-trash"></i> Supprimer</button>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (error) {
+        console.error("Erreur updateAppliancesList:", error);
+    }
 }
 
 function showApplianceModal(applianceId = null) {
-    const modal = document.getElementById('applianceModal');
-    const title = document.getElementById('applianceModalTitle');
-    updatePersonSelect();
-    if (applianceId !== null) {
-        const appliance = appliances.find(a => a.id === applianceId);
-        if (appliance) {
-            title.innerHTML = '<i class="fas fa-edit"></i> Modifier un appareil';
-            document.getElementById('applianceId').value = appliance.id;
-            document.getElementById('applianceName').value = appliance.name;
-            document.getElementById('appliancePower').value = appliance.power;
-            document.getElementById('applianceHours').value = appliance.hoursPerDay;
-            document.getElementById('applianceDays').value = appliance.daysPerMonth;
-            document.getElementById('applianceType').value = appliance.type;
-            document.getElementById('appliancePersonId').value = appliance.personId || '';
-            document.getElementById('applianceCategory').value = appliance.category;
+    try {
+        const modal = document.getElementById('applianceModal');
+        const title = document.getElementById('applianceModalTitle');
+        updatePersonSelect();
+        if (applianceId !== null) {
+            const appliance = appliances.find(a => a.id === applianceId);
+            if (appliance) {
+                if (title) title.innerHTML = '<i class="fas fa-edit"></i> Modifier un appareil';
+                document.getElementById('applianceId').value = appliance.id;
+                document.getElementById('applianceName').value = appliance.name || '';
+                document.getElementById('appliancePower').value = appliance.power || 0;
+                document.getElementById('applianceHours').value = appliance.hoursPerDay || 0;
+                document.getElementById('applianceDays').value = appliance.daysPerMonth || 0;
+                document.getElementById('applianceType').value = appliance.type || 'individual';
+                document.getElementById('appliancePersonId').value = appliance.personId || '';
+                document.getElementById('applianceCategory').value = appliance.category || '';
+                const personSelectGroup = document.getElementById('personSelectGroup');
+                if (personSelectGroup) personSelectGroup.style.display = appliance.type === 'individual' ? 'block' : 'none';
+                setTimeout(() => initConsumptionPreview(), 100);
+            }
+        } else {
+            if (title) title.innerHTML = '<i class="fas fa-plus-circle"></i> Ajouter un appareil';
+            const form = document.getElementById('applianceForm');
+            if (form) form.reset();
+            document.getElementById('applianceId').value = '';
+            document.getElementById('applianceType').value = 'individual';
             const personSelectGroup = document.getElementById('personSelectGroup');
-            if (personSelectGroup) personSelectGroup.style.display = appliance.type === 'individual' ? 'block' : 'none';
-            setTimeout(initConsumptionPreview, 100);
+            if (personSelectGroup) personSelectGroup.style.display = 'block';
+            setTimeout(() => initConsumptionPreview(), 100);
         }
-    } else {
-        title.innerHTML = '<i class="fas fa-plus-circle"></i> Ajouter un appareil';
-        document.getElementById('applianceForm').reset();
-        document.getElementById('applianceId').value = '';
-        document.getElementById('applianceType').value = 'individual';
-        const personSelectGroup = document.getElementById('personSelectGroup');
-        if (personSelectGroup) personSelectGroup.style.display = 'block';
-        setTimeout(initConsumptionPreview, 100);
+        if (modal) modal.style.display = 'block';
+    } catch (error) {
+        console.error("Erreur showApplianceModal:", error);
     }
-    modal.style.display = 'block';
 }
 
-function closeApplianceModal() { document.getElementById('applianceModal').style.display = 'none'; }
+function closeApplianceModal() { 
+    const modal = document.getElementById('applianceModal');
+    if (modal) modal.style.display = 'none';
+}
 
 function saveAppliance() {
-    const id = document.getElementById('applianceId').value;
-    const applianceData = {
-        id: id ? parseInt(id) : Date.now(),
-        name: document.getElementById('applianceName').value,
-        power: parseFloat(document.getElementById('appliancePower').value),
-        hoursPerDay: parseFloat(document.getElementById('applianceHours').value),
-        daysPerMonth: parseInt(document.getElementById('applianceDays').value),
-        type: document.getElementById('applianceType').value,
-        personId: document.getElementById('applianceType').value === 'individual' ? parseInt(document.getElementById('appliancePersonId').value) : null,
-        category: document.getElementById('applianceCategory').value
-    };
-    if (!applianceData.name || !applianceData.power) { showNotification('Veuillez remplir tous les champs', 'error'); return; }
-    applianceData.consumption = (applianceData.power * applianceData.hoursPerDay * applianceData.daysPerMonth) / 1000;
-    if (id) {
-        const index = appliances.findIndex(a => a.id === parseInt(id));
-        appliances[index] = applianceData;
-        showNotification('Appareil modifié avec succès', 'success');
-    } else {
-        appliances.push(applianceData);
-        showNotification('Appareil ajouté avec succès', 'success');
-    }
-    saveData();
-    updateAppliancesList();
-    updateDashboard();
-    updateBilling();
-    closeApplianceModal();
-}
-
-function deleteAppliance(id) {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet appareil ?')) {
-        appliances = appliances.filter(a => a.id !== id);
+    try {
+        const id = document.getElementById('applianceId').value;
+        const applianceData = {
+            id: id ? parseInt(id) : Date.now(),
+            name: document.getElementById('applianceName')?.value || '',
+            power: parseFloat(document.getElementById('appliancePower')?.value || 0),
+            hoursPerDay: parseFloat(document.getElementById('applianceHours')?.value || 0),
+            daysPerMonth: parseInt(document.getElementById('applianceDays')?.value || 0),
+            type: document.getElementById('applianceType')?.value || 'individual',
+            personId: document.getElementById('applianceType')?.value === 'individual' ? parseInt(document.getElementById('appliancePersonId')?.value) : null,
+            category: document.getElementById('applianceCategory')?.value || ''
+        };
+        if (!applianceData.name || !applianceData.power) { showNotification('Veuillez remplir tous les champs', 'error'); return; }
+        applianceData.consumption = (applianceData.power * applianceData.hoursPerDay * applianceData.daysPerMonth) / 1000;
+        if (id) {
+            const index = appliances.findIndex(a => a.id === parseInt(id));
+            if (index !== -1) appliances[index] = applianceData;
+            showNotification('Appareil modifié avec succès', 'success');
+        } else {
+            appliances.push(applianceData);
+            showNotification('Appareil ajouté avec succès', 'success');
+        }
         saveData();
         updateAppliancesList();
         updateDashboard();
         updateBilling();
-        showNotification('Appareil supprimé', 'success');
+        closeApplianceModal();
+    } catch (error) {
+        console.error("Erreur saveAppliance:", error);
+        showNotification('Erreur lors de la sauvegarde', 'error');
+    }
+}
+
+function deleteAppliance(id) {
+    try {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cet appareil ?')) {
+            appliances = appliances.filter(a => a.id !== id);
+            saveData();
+            updateAppliancesList();
+            updateDashboard();
+            updateBilling();
+            showNotification('Appareil supprimé', 'success');
+        }
+    } catch (error) {
+        console.error("Erreur deleteAppliance:", error);
     }
 }
 
 function importDefaultAppliances() {
-    const defaultAppliances = [
-        { name: 'Réfrigérateur', power: 150, hoursPerDay: 24, daysPerMonth: 30, type: 'shared', category: 'electromenager' },
-        { name: 'Téléviseur', power: 100, hoursPerDay: 5, daysPerMonth: 30, type: 'shared', category: 'multimedia' },
-        { name: 'Lave-linge', power: 2000, hoursPerDay: 1, daysPerMonth: 8, type: 'shared', category: 'electromenager' },
-        { name: 'Ampoule LED', power: 10, hoursPerDay: 6, daysPerMonth: 30, type: 'shared', category: 'eclairage' },
-        { name: 'Ordinateur', power: 200, hoursPerDay: 4, daysPerMonth: 22, type: 'individual', category: 'multimedia' }
-    ];
-    defaultAppliances.forEach(app => {
-        const consumption = (app.power * app.hoursPerDay * app.daysPerMonth) / 1000;
-        appliances.push({ id: Date.now() + Math.random(), ...app, consumption: consumption, personId: app.type === 'individual' && persons[0] ? persons[0].id : null });
-    });
-    saveData();
-    updateAppliancesList();
-    updateDashboard();
-    updateBilling();
-    showNotification('Appareils importés avec succès !', 'success');
+    try {
+        const defaultAppliances = [
+            { name: 'Réfrigérateur', power: 150, hoursPerDay: 24, daysPerMonth: 30, type: 'shared', category: 'electromenager' },
+            { name: 'Téléviseur', power: 100, hoursPerDay: 5, daysPerMonth: 30, type: 'shared', category: 'multimedia' },
+            { name: 'Lave-linge', power: 2000, hoursPerDay: 1, daysPerMonth: 8, type: 'shared', category: 'electromenager' },
+            { name: 'Ampoule LED', power: 10, hoursPerDay: 6, daysPerMonth: 30, type: 'shared', category: 'eclairage' },
+            { name: 'Ordinateur', power: 200, hoursPerDay: 4, daysPerMonth: 22, type: 'individual', category: 'multimedia' }
+        ];
+        defaultAppliances.forEach(app => {
+            const consumption = (app.power * app.hoursPerDay * app.daysPerMonth) / 1000;
+            appliances.push({ id: Date.now() + Math.random(), ...app, consumption: consumption, personId: app.type === 'individual' && persons[0] ? persons[0].id : null });
+        });
+        saveData();
+        updateAppliancesList();
+        updateDashboard();
+        updateBilling();
+        showNotification('Appareils importés avec succès !', 'success');
+    } catch (error) {
+        console.error("Erreur importDefaultAppliances:", error);
+    }
 }
 
 function initConsumptionPreview() {
-    const powerInput = document.getElementById('appliancePower');
-    const hoursInput = document.getElementById('applianceHours');
-    const daysInput = document.getElementById('applianceDays');
-    const previewSpan = document.getElementById('consumptionPreview');
-    function updatePreview() {
-        const power = parseFloat(powerInput?.value) || 0;
-        const hours = parseFloat(hoursInput?.value) || 0;
-        const days = parseFloat(daysInput?.value) || 0;
-        const consumption = (power * hours * days) / 1000;
-        if (previewSpan) previewSpan.textContent = `${consumption.toFixed(2)} kWh/mois`;
+    try {
+        const powerInput = document.getElementById('appliancePower');
+        const hoursInput = document.getElementById('applianceHours');
+        const daysInput = document.getElementById('applianceDays');
+        const previewSpan = document.getElementById('consumptionPreview');
+        function updatePreview() {
+            const power = parseFloat(powerInput?.value) || 0;
+            const hours = parseFloat(hoursInput?.value) || 0;
+            const days = parseFloat(daysInput?.value) || 0;
+            const consumption = (power * hours * days) / 1000;
+            if (previewSpan) previewSpan.textContent = `${consumption.toFixed(2)} kWh/mois`;
+        }
+        if (powerInput) powerInput.addEventListener('input', updatePreview);
+        if (hoursInput) hoursInput.addEventListener('input', updatePreview);
+        if (daysInput) daysInput.addEventListener('input', updatePreview);
+        updatePreview();
+    } catch (error) {
+        console.error("Erreur initConsumptionPreview:", error);
     }
-    if (powerInput) powerInput.addEventListener('input', updatePreview);
-    if (hoursInput) hoursInput.addEventListener('input', updatePreview);
-    if (daysInput) daysInput.addEventListener('input', updatePreview);
-    updatePreview();
 }
 
 // ========================================
@@ -581,78 +703,98 @@ function initConsumptionPreview() {
 // ========================================
 
 function updateBilling() {
-    const charges = getTotalCharges();
-    const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    const totalChargesElem = document.getElementById('totalCharges');
-    if (totalChargesElem) totalChargesElem.textContent = `${total.toFixed(0)} Ar`;
-    const container = document.getElementById('billingDetails');
-    if (!container) return;
-    if (charges.length === 0) { container.innerHTML = '<p style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Aucune donnée à afficher</p>'; return; }
-    container.innerHTML = `<table class="billing-table"><thead><tr><th>Colocataire</th><th>Électricité (Ar)</th><th>Eau (Ar)</th><th>Total (Ar)</th><th>Statut</th><th>Action</th></tr></thead>
-        <tbody>${charges.map(charge => `<tr>
-            <td><strong>${escapeHtml(charge.personName)}</strong></td>
-            <td class="amount">${charge.electricityCost.toFixed(0)} Ar</td>
-            <td class="amount">${charge.waterCost.toFixed(0)} Ar</td>
-            <td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong></td>
-            <td><span class="unpaid-badge" id="status-${charge.personId}">Non payé</span></td>
-            <td><button class="btn-glow" onclick="markAsPaid(${charge.personId})" style="padding: 5px 15px; font-size: 12px;"><i class="fas fa-check"></i> Payé</button></td>
-        </tr>`).join('')}</tbody></table>`;
+    try {
+        const charges = getTotalCharges();
+        const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
+        const totalChargesElem = document.getElementById('totalCharges');
+        if (totalChargesElem) totalChargesElem.textContent = `${total.toFixed(0)} Ar`;
+        const container = document.getElementById('billingDetails');
+        if (!container) return;
+        if (charges.length === 0) { container.innerHTML = '<p style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">Aucune donnée à afficher</p>'; return; }
+        container.innerHTML = `<table class="billing-table"><thead><tr><th>Colocataire</th><th>Électricité (Ar)</th><th>Eau (Ar)</th><th>Total (Ar)</th><th>Statut</th><th>Action</th></tr></thead>
+            <tbody>${charges.map(charge => `<tr>
+                <td><strong>${escapeHtml(charge.personName)}</strong></td>
+                <td class="amount">${charge.electricityCost.toFixed(0)} Ar</td>
+                <td class="amount">${charge.waterCost.toFixed(0)} Ar</td>
+                <td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong></td>
+                <td><span class="unpaid-badge" id="status-${charge.personId}">Non payé</span></td>
+                <td><button class="btn-glow" onclick="markAsPaid(${charge.personId})" style="padding: 5px 15px; font-size: 12px;"><i class="fas fa-check"></i> Payé</button></td>
+            </tr>`).join('')}</tbody></table>`;
+    } catch (error) {
+        console.error("Erreur updateBilling:", error);
+    }
 }
 
 function markAsPaid(personId) {
-    const statusSpan = document.getElementById(`status-${personId}`);
-    if (statusSpan) {
-        statusSpan.className = 'paid-badge';
-        statusSpan.textContent = 'Payé';
-        const period = document.getElementById('period').value;
-        const person = persons.find(p => p.id === personId);
-        const charges = getTotalCharges();
-        const charge = charges.find(c => c.personId === personId);
-        if (charge && person) {
-            history.unshift({ date: new Date().toISOString(), period: period, personName: person.name, amount: charge.totalCost, type: 'paiement' });
-            saveData();
-            updateHistory();
-            saveMonthlyData();
+    try {
+        const statusSpan = document.getElementById(`status-${personId}`);
+        if (statusSpan) {
+            statusSpan.className = 'paid-badge';
+            statusSpan.textContent = 'Payé';
+            const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+            const person = persons.find(p => p.id === personId);
+            const charges = getTotalCharges();
+            const charge = charges.find(c => c.personId === personId);
+            if (charge && person) {
+                history.unshift({ date: new Date().toISOString(), period: period, personName: person.name, amount: charge.totalCost, type: 'paiement' });
+                saveData();
+                updateHistory();
+                saveMonthlyData();
+            }
+            showNotification('Paiement enregistré avec succès !', 'success');
         }
-        showNotification('Paiement enregistré avec succès !', 'success');
+    } catch (error) {
+        console.error("Erreur markAsPaid:", error);
     }
 }
 
 function updateHistory() {
-    const container = document.getElementById('historyList');
-    if (!container) return;
-    if (history.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun historique disponible</p>'; return; }
-    container.innerHTML = history.map(item => `<div class="history-item">
-        <p><strong>📅 ${new Date(item.date).toLocaleDateString('fr-FR')}</strong> - ${item.period}</p>
-        <p>${item.type === 'facture' ? '📄 Facture générée' : '💰 Paiement enregistré'}</p>
-        ${item.personName ? `<p>👤 ${item.personName}</p>` : ''}
-        ${item.amount ? `<p>💵 Montant: ${item.amount.toFixed(0)} Ar</p>` : ''}
-        ${item.total ? `<p>📊 Total: ${item.total.toFixed(0)} Ar</p>` : ''}
-    </div>`).join('');
+    try {
+        const container = document.getElementById('historyList');
+        if (!container) return;
+        if (history.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 40px;">Aucun historique disponible</p>'; return; }
+        container.innerHTML = history.map(item => `<div class="history-item">
+            <p><strong>📅 ${new Date(item.date).toLocaleDateString('fr-FR')}</strong> - ${item.period}</p>
+            <p>${item.type === 'facture' ? '📄 Facture générée' : '💰 Paiement enregistré'}</p>
+            ${item.personName ? `<p>👤 ${item.personName}</p>` : ''}
+            ${item.amount ? `<p>💵 Montant: ${item.amount.toFixed(0)} Ar</p>` : ''}
+            ${item.total ? `<p>📊 Total: ${item.total.toFixed(0)} Ar</p>` : ''}
+        </div>`).join('');
+    } catch (error) {
+        console.error("Erreur updateHistory:", error);
+    }
 }
 
 function clearHistory() {
-    if (confirm('Voulez-vous effacer tout l\'historique ?')) {
-        history = [];
-        saveData();
-        updateHistory();
-        showNotification('Historique effacé', 'success');
+    try {
+        if (confirm('Voulez-vous effacer tout l\'historique ?')) {
+            history = [];
+            saveData();
+            updateHistory();
+            showNotification('Historique effacé', 'success');
+        }
+    } catch (error) {
+        console.error("Erreur clearHistory:", error);
     }
 }
 
 function shareBill() {
-    if (persons.length === 0) { showNotification('Ajoutez des colocataires avant de partager', 'error'); return; }
-    const charges = getTotalCharges();
-    const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    const period = document.getElementById('period').value;
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const [year, month] = period.split('-');
-    const monthName = monthNames[parseInt(month) - 1];
-    let message = `📄 *Facture des charges - ${monthName} ${year}*\n\n`;
-    charges.forEach(charge => { message += `👤 ${charge.personName}:\n   ⚡ Électricité: ${charge.electricityCost.toFixed(0)} Ar\n   💧 Eau: ${charge.waterCost.toFixed(0)} Ar\n   💰 Total: ${charge.totalCost.toFixed(0)} Ar\n\n`; });
-    message += `📊 *Total général: ${total.toFixed(0)} Ar*`;
-    if (navigator.share) { navigator.share({ title: 'Facture des charges', text: message }).catch(() => { navigator.clipboard.writeText(message); showNotification('Facture copiée dans le presse-papier !', 'success'); }); }
-    else { navigator.clipboard.writeText(message); showNotification('Facture copiée dans le presse-papier !', 'success'); }
+    try {
+        if (persons.length === 0) { showNotification('Ajoutez des colocataires avant de partager', 'error'); return; }
+        const charges = getTotalCharges();
+        const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const [year, month] = period.split('-');
+        const monthName = monthNames[parseInt(month) - 1];
+        let message = `📄 *Facture des charges - ${monthName} ${year}*\n\n`;
+        charges.forEach(charge => { message += `👤 ${charge.personName}:\n   ⚡ Électricité: ${charge.electricityCost.toFixed(0)} Ar\n   💧 Eau: ${charge.waterCost.toFixed(0)} Ar\n   💰 Total: ${charge.totalCost.toFixed(0)} Ar\n\n`; });
+        message += `📊 *Total général: ${total.toFixed(0)} Ar*`;
+        if (navigator.share) { navigator.share({ title: 'Facture des charges', text: message }).catch(() => { navigator.clipboard.writeText(message); showNotification('Facture copiée dans le presse-papier !', 'success'); }); }
+        else { navigator.clipboard.writeText(message); showNotification('Facture copiée dans le presse-papier !', 'success'); }
+    } catch (error) {
+        console.error("Erreur shareBill:", error);
+    }
 }
 
 // ========================================
@@ -660,151 +802,177 @@ function shareBill() {
 // ========================================
 
 function initTarifSections() {
-    const methodSelect = document.getElementById('elecTarifMethod');
-    const simpleSection = document.getElementById('simpleTarifSection');
-    const tranchesSection = document.getElementById('tranchesTarifSection');
-    if (methodSelect) {
-        methodSelect.addEventListener('change', function() {
-            if (this.value === 'simple') { if (simpleSection) simpleSection.style.display = 'block'; if (tranchesSection) tranchesSection.style.display = 'none'; }
+    try {
+        const methodSelect = document.getElementById('elecTarifMethod');
+        const simpleSection = document.getElementById('simpleTarifSection');
+        const tranchesSection = document.getElementById('tranchesTarifSection');
+        if (methodSelect) {
+            methodSelect.addEventListener('change', function() {
+                if (this.value === 'simple') { if (simpleSection) simpleSection.style.display = 'block'; if (tranchesSection) tranchesSection.style.display = 'none'; }
+                else { if (simpleSection) simpleSection.style.display = 'none'; if (tranchesSection) tranchesSection.style.display = 'block'; }
+            });
+            methodSelect.value = elecTarifMethod || 'simple';
+            if (elecTarifMethod === 'simple') { if (simpleSection) simpleSection.style.display = 'block'; if (tranchesSection) tranchesSection.style.display = 'none'; }
             else { if (simpleSection) simpleSection.style.display = 'none'; if (tranchesSection) tranchesSection.style.display = 'block'; }
-        });
-        methodSelect.value = elecTarifMethod || 'simple';
-        if (elecTarifMethod === 'simple') { if (simpleSection) simpleSection.style.display = 'block'; if (tranchesSection) tranchesSection.style.display = 'none'; }
-        else { if (simpleSection) simpleSection.style.display = 'none'; if (tranchesSection) tranchesSection.style.display = 'block'; }
+        }
+        const limitInputs = ['tranche1Limit', 'tranche2Limit', 'tranche3Limit', 'tranche4Limit'];
+        limitInputs.forEach(id => { const input = document.getElementById(id); if (input) input.addEventListener('change', updateTrancheDisplays); });
+        updateTrancheDisplays();
+    } catch (error) {
+        console.error("Erreur initTarifSections:", error);
     }
-    const limitInputs = ['tranche1Limit', 'tranche2Limit', 'tranche3Limit', 'tranche4Limit'];
-    limitInputs.forEach(id => { const input = document.getElementById(id); if (input) input.addEventListener('change', updateTrancheDisplays); });
-    updateTrancheDisplays();
 }
 
 function updateTrancheDisplays() {
-    const t1 = electricityTranches[0], t2 = electricityTranches[1], t3 = electricityTranches[2], t4 = electricityTranches[3];
-    const limit1Display = document.getElementById('limit1Display');
-    const limit2Start = document.getElementById('limit2Start');
-    const limit2Display = document.getElementById('limit2Display');
-    const limit3Start = document.getElementById('limit3Start');
-    const limit3Display = document.getElementById('limit3Display');
-    const limit4Display = document.getElementById('limit4Display');
-    if (limit1Display) limit1Display.textContent = t1.max;
-    if (limit2Start) limit2Start.textContent = t2.min;
-    if (limit2Display) limit2Display.textContent = t2.max;
-    if (limit3Start) limit3Start.textContent = t3.min;
-    if (limit3Display) limit3Display.textContent = t3.max;
-    if (limit4Display) limit4Display.textContent = t4.min;
-    const tranche1Limit = document.getElementById('tranche1Limit');
-    const tranche1Price = document.getElementById('tranche1Price');
-    const tranche2Limit = document.getElementById('tranche2Limit');
-    const tranche2Price = document.getElementById('tranche2Price');
-    const tranche3Limit = document.getElementById('tranche3Limit');
-    const tranche3Price = document.getElementById('tranche3Price');
-    const tranche4Limit = document.getElementById('tranche4Limit');
-    const tranche4Price = document.getElementById('tranche4Price');
-    if (tranche1Limit) tranche1Limit.value = t1.max;
-    if (tranche1Price) tranche1Price.value = t1.price;
-    if (tranche2Limit) tranche2Limit.value = t2.max;
-    if (tranche2Price) tranche2Price.value = t2.price;
-    if (tranche3Limit) tranche3Limit.value = t3.max;
-    if (tranche3Price) tranche3Price.value = t3.price;
-    if (tranche4Limit) tranche4Limit.value = t4.min;
-    if (tranche4Price) tranche4Price.value = t4.price;
+    try {
+        const t1 = electricityTranches[0], t2 = electricityTranches[1], t3 = electricityTranches[2], t4 = electricityTranches[3];
+        const limit1Display = document.getElementById('limit1Display');
+        const limit2Start = document.getElementById('limit2Start');
+        const limit2Display = document.getElementById('limit2Display');
+        const limit3Start = document.getElementById('limit3Start');
+        const limit3Display = document.getElementById('limit3Display');
+        const limit4Display = document.getElementById('limit4Display');
+        if (limit1Display && t1) limit1Display.textContent = t1.max;
+        if (limit2Start && t2) limit2Start.textContent = t2.min;
+        if (limit2Display && t2) limit2Display.textContent = t2.max;
+        if (limit3Start && t3) limit3Start.textContent = t3.min;
+        if (limit3Display && t3) limit3Display.textContent = t3.max;
+        if (limit4Display && t4) limit4Display.textContent = t4.min;
+        
+        const tranche1Limit = document.getElementById('tranche1Limit');
+        const tranche1Price = document.getElementById('tranche1Price');
+        const tranche2Limit = document.getElementById('tranche2Limit');
+        const tranche2Price = document.getElementById('tranche2Price');
+        const tranche3Limit = document.getElementById('tranche3Limit');
+        const tranche3Price = document.getElementById('tranche3Price');
+        const tranche4Limit = document.getElementById('tranche4Limit');
+        const tranche4Price = document.getElementById('tranche4Price');
+        if (tranche1Limit && t1) tranche1Limit.value = t1.max;
+        if (tranche1Price && t1) tranche1Price.value = t1.price;
+        if (tranche2Limit && t2) tranche2Limit.value = t2.max;
+        if (tranche2Price && t2) tranche2Price.value = t2.price;
+        if (tranche3Limit && t3) tranche3Limit.value = t3.max;
+        if (tranche3Price && t3) tranche3Price.value = t3.price;
+        if (tranche4Limit && t4) tranche4Limit.value = t4.min;
+        if (tranche4Price && t4) tranche4Price.value = t4.price;
+    } catch (error) {
+        console.error("Erreur updateTrancheDisplays:", error);
+    }
 }
 
 function saveSettings() {
-    const elecBillInput = document.getElementById('elecBillAmount');
-    const waterBillInput = document.getElementById('waterBillAmount');
-    const elecConsumptionInput = document.getElementById('elecConsumption');
-    const waterConsumptionInput = document.getElementById('waterConsumption');
-    const elecMethodSelect = document.getElementById('elecMethod');
-    const waterMethodSelect = document.getElementById('waterMethod');
-    const elecTranchesEnabledSelect = document.getElementById('elecTranchesEnabled');
-    const waterTranchesEnabledSelect = document.getElementById('waterTranchesEnabled');
-    const priceSimpleInput = document.getElementById('pricePerKwhSimple');
-    const elecTarifMethodSelect = document.getElementById('elecTarifMethod');
-    const emailNotificationsSelect = document.getElementById('emailNotifications');
-    const autoSyncSelect = document.getElementById('autoSync');
-    const paymentRemindersSelect = document.getElementById('paymentReminders');
-    const reminderDaysSelect = document.getElementById('reminderDays');
-    if (elecBillInput) elecBillAmount = parseFloat(elecBillInput.value) || 0;
-    if (waterBillInput) waterBillAmount = parseFloat(waterBillInput.value) || 0;
-    if (elecConsumptionInput) elecConsumption = parseFloat(elecConsumptionInput.value) || 0;
-    if (waterConsumptionInput) waterConsumption = parseFloat(waterConsumptionInput.value) || 0;
-    if (elecMethodSelect) elecMethod = elecMethodSelect.value;
-    if (waterMethodSelect) waterMethod = waterMethodSelect.value;
-    if (elecTranchesEnabledSelect) elecTranchesEnabled = elecTranchesEnabledSelect.value === 'true';
-    if (waterTranchesEnabledSelect) waterTranchesEnabled = waterTranchesEnabledSelect.value === 'true';
-    if (priceSimpleInput) pricePerKwhSimple = parseFloat(priceSimpleInput.value) || 550;
-    if (elecTarifMethodSelect) elecTarifMethod = elecTarifMethodSelect.value;
-    if (emailNotificationsSelect) emailNotificationsEnabled = emailNotificationsSelect.value === 'true';
-    if (autoSyncSelect) autoSyncEnabled = autoSyncSelect.value === 'true';
-    if (paymentRemindersSelect) paymentRemindersEnabled = paymentRemindersSelect.value === 'true';
-    if (reminderDaysSelect) reminderDays = parseInt(reminderDaysSelect.value) || 3;
-    calculateActualPrices();
-    saveData();
-    updateDashboard();
-    updateBilling();
-    showNotification('Paramètres sauvegardés avec succès !', 'success');
+    try {
+        const elecBillInput = document.getElementById('elecBillAmount');
+        const waterBillInput = document.getElementById('waterBillAmount');
+        const elecConsumptionInput = document.getElementById('elecConsumption');
+        const waterConsumptionInput = document.getElementById('waterConsumption');
+        const elecMethodSelect = document.getElementById('elecMethod');
+        const waterMethodSelect = document.getElementById('waterMethod');
+        const elecTranchesEnabledSelect = document.getElementById('elecTranchesEnabled');
+        const waterTranchesEnabledSelect = document.getElementById('waterTranchesEnabled');
+        const priceSimpleInput = document.getElementById('pricePerKwhSimple');
+        const elecTarifMethodSelect = document.getElementById('elecTarifMethod');
+        const emailNotificationsSelect = document.getElementById('emailNotifications');
+        const autoSyncSelect = document.getElementById('autoSync');
+        const paymentRemindersSelect = document.getElementById('paymentReminders');
+        const reminderDaysSelect = document.getElementById('reminderDays');
+        
+        if (elecBillInput) elecBillAmount = parseFloat(elecBillInput.value) || 0;
+        if (waterBillInput) waterBillAmount = parseFloat(waterBillInput.value) || 0;
+        if (elecConsumptionInput) elecConsumption = parseFloat(elecConsumptionInput.value) || 0;
+        if (waterConsumptionInput) waterConsumption = parseFloat(waterConsumptionInput.value) || 0;
+        if (elecMethodSelect) elecMethod = elecMethodSelect.value;
+        if (waterMethodSelect) waterMethod = waterMethodSelect.value;
+        if (elecTranchesEnabledSelect) elecTranchesEnabled = elecTranchesEnabledSelect.value === 'true';
+        if (waterTranchesEnabledSelect) waterTranchesEnabled = waterTranchesEnabledSelect.value === 'true';
+        if (priceSimpleInput) pricePerKwhSimple = parseFloat(priceSimpleInput.value) || 550;
+        if (elecTarifMethodSelect) elecTarifMethod = elecTarifMethodSelect.value;
+        if (emailNotificationsSelect) emailNotificationsEnabled = emailNotificationsSelect.value === 'true';
+        if (autoSyncSelect) autoSyncEnabled = autoSyncSelect.value === 'true';
+        if (paymentRemindersSelect) paymentRemindersEnabled = paymentRemindersSelect.value === 'true';
+        if (reminderDaysSelect) reminderDays = parseInt(reminderDaysSelect.value) || 3;
+        
+        calculateActualPrices();
+        saveData();
+        updateDashboard();
+        updateBilling();
+        showNotification('Paramètres sauvegardés avec succès !', 'success');
+    } catch (error) {
+        console.error("Erreur saveSettings:", error);
+        showNotification('Erreur lors de la sauvegarde', 'error');
+    }
 }
 
 function loadSettings() {
-    const elecBillInput = document.getElementById('elecBillAmount');
-    const waterBillInput = document.getElementById('waterBillAmount');
-    const elecConsumptionInput = document.getElementById('elecConsumption');
-    const waterConsumptionInput = document.getElementById('waterConsumption');
-    const elecMethodSelect = document.getElementById('elecMethod');
-    const waterMethodSelect = document.getElementById('waterMethod');
-    const elecTranchesEnabledSelect = document.getElementById('elecTranchesEnabled');
-    const waterTranchesEnabledSelect = document.getElementById('waterTranchesEnabled');
-    const priceSimpleInput = document.getElementById('pricePerKwhSimple');
-    const elecTarifMethodSelect = document.getElementById('elecTarifMethod');
-    const emailNotificationsSelect = document.getElementById('emailNotifications');
-    const autoSyncSelect = document.getElementById('autoSync');
-    const paymentRemindersSelect = document.getElementById('paymentReminders');
-    const reminderDaysSelect = document.getElementById('reminderDays');
-    if (elecBillInput) elecBillInput.value = elecBillAmount;
-    if (waterBillInput) waterBillInput.value = waterBillAmount;
-    if (elecConsumptionInput) elecConsumptionInput.value = elecConsumption;
-    if (waterConsumptionInput) waterConsumptionInput.value = waterConsumption;
-    if (elecMethodSelect) elecMethodSelect.value = elecMethod;
-    if (waterMethodSelect) waterMethodSelect.value = waterMethod;
-    if (elecTranchesEnabledSelect) elecTranchesEnabledSelect.value = elecTranchesEnabled ? 'true' : 'false';
-    if (waterTranchesEnabledSelect) waterTranchesEnabledSelect.value = waterTranchesEnabled ? 'true' : 'false';
-    if (priceSimpleInput) priceSimpleInput.value = pricePerKwhSimple;
-    if (elecTarifMethodSelect) elecTarifMethodSelect.value = elecTarifMethod;
-    if (emailNotificationsSelect) emailNotificationsSelect.value = emailNotificationsEnabled ? 'true' : 'false';
-    if (autoSyncSelect) autoSyncSelect.value = autoSyncEnabled ? 'true' : 'false';
-    if (paymentRemindersSelect) paymentRemindersSelect.value = paymentRemindersEnabled ? 'true' : 'false';
-    if (reminderDaysSelect) reminderDaysSelect.value = reminderDays;
-    calculateActualPrices();
-    renderElecTranches();
-    renderWaterTranches();
+    try {
+        const elecBillInput = document.getElementById('elecBillAmount');
+        const waterBillInput = document.getElementById('waterBillAmount');
+        const elecConsumptionInput = document.getElementById('elecConsumption');
+        const waterConsumptionInput = document.getElementById('waterConsumption');
+        const elecMethodSelect = document.getElementById('elecMethod');
+        const waterMethodSelect = document.getElementById('waterMethod');
+        const elecTranchesEnabledSelect = document.getElementById('elecTranchesEnabled');
+        const waterTranchesEnabledSelect = document.getElementById('waterTranchesEnabled');
+        const priceSimpleInput = document.getElementById('pricePerKwhSimple');
+        const elecTarifMethodSelect = document.getElementById('elecTarifMethod');
+        const emailNotificationsSelect = document.getElementById('emailNotifications');
+        const autoSyncSelect = document.getElementById('autoSync');
+        const paymentRemindersSelect = document.getElementById('paymentReminders');
+        const reminderDaysSelect = document.getElementById('reminderDays');
+        
+        if (elecBillInput) elecBillInput.value = elecBillAmount;
+        if (waterBillInput) waterBillInput.value = waterBillAmount;
+        if (elecConsumptionInput) elecConsumptionInput.value = elecConsumption;
+        if (waterConsumptionInput) waterConsumptionInput.value = waterConsumption;
+        if (elecMethodSelect) elecMethodSelect.value = elecMethod;
+        if (waterMethodSelect) waterMethodSelect.value = waterMethod;
+        if (elecTranchesEnabledSelect) elecTranchesEnabledSelect.value = elecTranchesEnabled ? 'true' : 'false';
+        if (waterTranchesEnabledSelect) waterTranchesEnabledSelect.value = waterTranchesEnabled ? 'true' : 'false';
+        if (priceSimpleInput) priceSimpleInput.value = pricePerKwhSimple;
+        if (elecTarifMethodSelect) elecTarifMethodSelect.value = elecTarifMethod;
+        if (emailNotificationsSelect) emailNotificationsSelect.value = emailNotificationsEnabled ? 'true' : 'false';
+        if (autoSyncSelect) autoSyncSelect.value = autoSyncEnabled ? 'true' : 'false';
+        if (paymentRemindersSelect) paymentRemindersSelect.value = paymentRemindersEnabled ? 'true' : 'false';
+        if (reminderDaysSelect) reminderDaysSelect.value = reminderDays;
+        
+        calculateActualPrices();
+        renderElecTranches();
+        renderWaterTranches();
+    } catch (error) {
+        console.error("Erreur loadSettings:", error);
+    }
 }
 
 function resetData() {
-    if (confirm('⚠️ Êtes-vous sûr de vouloir réinitialiser toutes les données ? Cette action est irréversible.')) {
-        persons = [];
-        appliances = [];
-        history = [];
-        commonExpenses = [];
-        evolutionData = [];
-        guests = [];
-        virtualAccounts = {};
-        elecBillAmount = 0;
-        waterBillAmount = 0;
-        waterConsumption = 0;
-        elecTranchesEnabled = false;
-        waterTranchesEnabled = false;
-        initDefaultTranches();
-        saveData();
-        updatePersonsList();
-        updateAppliancesList();
-        updateDashboard();
-        updateBilling();
-        updateHistory();
-        updateExpensesList();
-        updateEvolutionChart();
-        updateWidgets();
-        loadSettings();
-        showNotification('Données réinitialisées avec succès', 'success');
+    try {
+        if (confirm('⚠️ Êtes-vous sûr de vouloir réinitialiser toutes les données ? Cette action est irréversible.')) {
+            persons = [];
+            appliances = [];
+            history = [];
+            commonExpenses = [];
+            evolutionData = [];
+            guests = [];
+            virtualAccounts = {};
+            elecBillAmount = 0;
+            waterBillAmount = 0;
+            waterConsumption = 0;
+            elecTranchesEnabled = false;
+            waterTranchesEnabled = false;
+            initDefaultTranches();
+            saveData();
+            updatePersonsList();
+            updateAppliancesList();
+            updateDashboard();
+            updateBilling();
+            updateHistory();
+            updateExpensesList();
+            updateEvolutionChart();
+            updateWidgets();
+            loadSettings();
+            showNotification('Données réinitialisées avec succès', 'success');
+        }
+    } catch (error) {
+        console.error("Erreur resetData:", error);
     }
 }
 
@@ -813,122 +981,163 @@ function resetData() {
 // ========================================
 
 function updateDashboard() {
-    document.getElementById('totalPersons').textContent = persons.length;
-    document.getElementById('totalAppliances').textContent = appliances.length;
-    const totalConsumption = appliances.reduce((sum, a) => sum + a.consumption, 0);
-    document.getElementById('totalElecConsumption').textContent = `${totalConsumption.toFixed(2)} kWh`;
-    document.getElementById('totalWaterConsumption').textContent = `${waterConsumption} m³`;
-    updateCharts();
-    updateAlerts();
-    updateTips();
-    updateHeaderStats();
-    updateEvolutionChart();
-    updateExpensesList();
-    updateWidgets();
-    updateForecast();
+    try {
+        const totalPersonsElem = document.getElementById('totalPersons');
+        const totalAppliancesElem = document.getElementById('totalAppliances');
+        const totalElecConsumptionElem = document.getElementById('totalElecConsumption');
+        const totalWaterConsumptionElem = document.getElementById('totalWaterConsumption');
+        
+        if (totalPersonsElem) totalPersonsElem.textContent = persons.length;
+        if (totalAppliancesElem) totalAppliancesElem.textContent = appliances.length;
+        
+        const totalConsumption = appliances.reduce((sum, a) => sum + (a.consumption || 0), 0);
+        if (totalElecConsumptionElem) totalElecConsumptionElem.textContent = `${totalConsumption.toFixed(2)} kWh`;
+        if (totalWaterConsumptionElem) totalWaterConsumptionElem.textContent = `${waterConsumption} m³`;
+        
+        updateCharts();
+        updateAlerts();
+        updateTips();
+        updateHeaderStats();
+        updateEvolutionChart();
+        updateExpensesList();
+        updateWidgets();
+        updateForecast();
+    } catch (error) {
+        console.error("Erreur updateDashboard:", error);
+    }
 }
 
 function updateHeaderStats() {
-    const charges = getTotalCharges();
-    const totalBudget = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    document.getElementById('headerPersonCount').textContent = persons.length;
-    document.getElementById('headerTotalBudget').textContent = `${totalBudget.toFixed(0)} Ar`;
-    const period = document.getElementById('period').value;
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const [year, month] = period.split('-');
-    const monthName = monthNames[parseInt(month) - 1];
-    document.getElementById('currentPeriod').textContent = `${monthName} ${year}`;
+    try {
+        const charges = getTotalCharges();
+        const totalBudget = charges.reduce((sum, c) => sum + c.totalCost, 0);
+        const headerPersonCount = document.getElementById('headerPersonCount');
+        const headerTotalBudget = document.getElementById('headerTotalBudget');
+        const currentPeriodElem = document.getElementById('currentPeriod');
+        
+        if (headerPersonCount) headerPersonCount.textContent = persons.length;
+        if (headerTotalBudget) headerTotalBudget.textContent = `${totalBudget.toFixed(0)} Ar`;
+        
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const [year, month] = period.split('-');
+        const monthName = monthNames[parseInt(month) - 1];
+        if (currentPeriodElem) currentPeriodElem.textContent = `${monthName} ${year}`;
+    } catch (error) {
+        console.error("Erreur updateHeaderStats:", error);
+    }
 }
 
 function updateCharts() {
-    const elecCharges = calculateElectricityCharges();
-    const elecCtx = document.getElementById('elecChart');
-    if (elecCtx && elecCharges.length > 0 && elecCharges.some(c => c.totalElectricity > 0)) {
-        if (elecChart) elecChart.destroy();
-        elecChart = new Chart(elecCtx, {
-            type: 'doughnut',
-            data: { labels: elecCharges.map(c => c.personName), datasets: [{ data: elecCharges.map(c => c.totalElectricity), backgroundColor: ['#00d4ff', '#0099cc', '#33ddff', '#66e6ff', '#99eeff'], borderWidth: 0, hoverOffset: 10, cutout: '60%', animation: { animateRotate: true, animateScale: true, duration: 1000, easing: 'easeOutBounce' } }] },
-            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { color: 'white', font: { size: 11 }, boxWidth: 12, padding: 10 } }, tooltip: { callbacks: { label: function(context) { const value = context.raw; const total = elecCharges.reduce((s, c) => s + c.totalElectricity, 0); const percent = total > 0 ? (value / total * 100).toFixed(1) : 0; return `${context.label}: ${value.toFixed(0)} Ar (${percent}%)`; } } } } }
-        });
-        elecChart.update();
-    } else if (elecCtx) {
-        if (elecChart) elecChart.destroy();
-        const ctx = elecCtx.getContext('2d');
-        ctx.clearRect(0, 0, elecCtx.width, elecCtx.height);
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.font = '12px Inter';
-        ctx.textAlign = 'center';
-        ctx.fillText('Aucune donnée disponible', elecCtx.width / 2, elecCtx.height / 2);
-    }
-    const topAppliances = [...appliances].sort((a, b) => b.consumption - a.consumption).slice(0, 5);
-    const appCtx = document.getElementById('appliancesChart');
-    if (appCtx && topAppliances.length > 0) {
-        if (appliancesChart) appliancesChart.destroy();
-        appliancesChart = new Chart(appCtx, {
-            type: 'bar',
-            data: { labels: topAppliances.map(a => a.name), datasets: [{ label: 'Consommation (kWh)', data: topAppliances.map(a => a.consumption), backgroundColor: '#00d4ff', borderRadius: 8, barPercentage: 0.7, categoryPercentage: 0.8, animation: { duration: 1000, easing: 'easeOutQuart' } }] },
-            options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, title: { display: true, text: 'kWh', color: 'white', font: { size: 11 } }, ticks: { color: 'white', stepSize: 50 }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: 'white', font: { size: 10 } }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return `Consommation: ${context.raw.toFixed(2)} kWh`; } } } } }
-        });
-        appliancesChart.update();
-    } else if (appCtx) {
-        if (appliancesChart) appliancesChart.destroy();
-        const ctx = appCtx.getContext('2d');
-        ctx.clearRect(0, 0, appCtx.width, appCtx.height);
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.font = '12px Inter';
-        ctx.textAlign = 'center';
-        ctx.fillText('Aucun appareil enregistré', appCtx.width / 2, appCtx.height / 2);
+    try {
+        const elecCharges = calculateElectricityCharges();
+        const elecCtx = document.getElementById('elecChart');
+        if (elecCtx && elecCharges.length > 0 && elecCharges.some(c => c.totalElectricity > 0)) {
+            if (elecChart) elecChart.destroy();
+            elecChart = new Chart(elecCtx, {
+                type: 'doughnut',
+                data: { labels: elecCharges.map(c => c.personName), datasets: [{ data: elecCharges.map(c => c.totalElectricity), backgroundColor: ['#00d4ff', '#0099cc', '#33ddff', '#66e6ff', '#99eeff'], borderWidth: 0, hoverOffset: 10, cutout: '60%', animation: { animateRotate: true, animateScale: true, duration: 1000, easing: 'easeOutBounce' } }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { color: 'white', font: { size: 11 }, boxWidth: 12, padding: 10 } }, tooltip: { callbacks: { label: function(context) { const value = context.raw; const total = elecCharges.reduce((s, c) => s + c.totalElectricity, 0); const percent = total > 0 ? (value / total * 100).toFixed(1) : 0; return `${context.label}: ${value.toFixed(0)} Ar (${percent}%)`; } } } } }
+            });
+            elecChart.update();
+        } else if (elecCtx) {
+            if (elecChart) elecChart.destroy();
+            const ctx = elecCtx.getContext('2d');
+            ctx.clearRect(0, 0, elecCtx.width, elecCtx.height);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = '12px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('Aucune donnée disponible', elecCtx.width / 2, elecCtx.height / 2);
+        }
+        
+        const topAppliances = [...appliances].sort((a, b) => (b.consumption || 0) - (a.consumption || 0)).slice(0, 5);
+        const appCtx = document.getElementById('appliancesChart');
+        if (appCtx && topAppliances.length > 0) {
+            if (appliancesChart) appliancesChart.destroy();
+            appliancesChart = new Chart(appCtx, {
+                type: 'bar',
+                data: { labels: topAppliances.map(a => a.name), datasets: [{ label: 'Consommation (kWh)', data: topAppliances.map(a => a.consumption || 0), backgroundColor: '#00d4ff', borderRadius: 8, barPercentage: 0.7, categoryPercentage: 0.8, animation: { duration: 1000, easing: 'easeOutQuart' } }] },
+                options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true, title: { display: true, text: 'kWh', color: 'white', font: { size: 11 } }, ticks: { color: 'white', stepSize: 50 }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: 'white', font: { size: 10 } }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return `Consommation: ${context.raw.toFixed(2)} kWh`; } } } } }
+            });
+            appliancesChart.update();
+        } else if (appCtx) {
+            if (appliancesChart) appliancesChart.destroy();
+            const ctx = appCtx.getContext('2d');
+            ctx.clearRect(0, 0, appCtx.width, appCtx.height);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.font = '12px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillText('Aucun appareil enregistré', appCtx.width / 2, appCtx.height / 2);
+        }
+    } catch (error) {
+        console.error("Erreur updateCharts:", error);
     }
 }
 
 function updateAlerts() {
-    const alertsContainer = document.getElementById('alertsList');
-    if (!alertsContainer) return;
-    const alerts = [];
-    const totalConsumption = appliances.reduce((sum, a) => sum + a.consumption, 0);
-    if (totalConsumption > 500) alerts.push('<i class="fas fa-exclamation-triangle"></i> ⚠️ Consommation électrique élevée (>500 kWh)');
-    const highPowerAppliances = appliances.filter(a => a.power > 2000);
-    if (highPowerAppliances.length > 0) alerts.push(`<i class="fas fa-fire"></i> 🔥 ${highPowerAppliances.length} appareil(s) énergivore(s) détecté(s)`);
-    if (elecBillAmount === 0 && waterBillAmount === 0 && persons.length > 0) alerts.push('<i class="fas fa-file-invoice"></i> 💡 Pensez à saisir vos factures JIRAMA dans les paramètres');
-    if (persons.length === 0) alerts.push('<i class="fas fa-users"></i> 👥 Ajoutez des colocataires pour commencer');
-    if (alerts.length === 0) alertsContainer.innerHTML = '<p><i class="fas fa-check-circle"></i> ✅ Tout est en ordre !</p>';
-    else alertsContainer.innerHTML = alerts.map(alert => `<p>${alert}</p>`).join('');
+    try {
+        const alertsContainer = document.getElementById('alertsList');
+        if (!alertsContainer) return;
+        const alerts = [];
+        const totalConsumption = appliances.reduce((sum, a) => sum + (a.consumption || 0), 0);
+        if (totalConsumption > 500) alerts.push('<i class="fas fa-exclamation-triangle"></i> ⚠️ Consommation électrique élevée (>500 kWh)');
+        const highPowerAppliances = appliances.filter(a => (a.power || 0) > 2000);
+        if (highPowerAppliances.length > 0) alerts.push(`<i class="fas fa-fire"></i> 🔥 ${highPowerAppliances.length} appareil(s) énergivore(s) détecté(s)`);
+        if (elecBillAmount === 0 && waterBillAmount === 0 && persons.length > 0) alerts.push('<i class="fas fa-file-invoice"></i> 💡 Pensez à saisir vos factures JIRAMA dans les paramètres');
+        if (persons.length === 0) alerts.push('<i class="fas fa-users"></i> 👥 Ajoutez des colocataires pour commencer');
+        if (alerts.length === 0) alertsContainer.innerHTML = '<p><i class="fas fa-check-circle"></i> ✅ Tout est en ordre !</p>';
+        else alertsContainer.innerHTML = alerts.map(alert => `<p>${alert}</p>`).join('');
+    } catch (error) {
+        console.error("Erreur updateAlerts:", error);
+    }
 }
 
 function updateTips() {
-    const tipsContainer = document.getElementById('tipsList');
-    if (!tipsContainer) return;
-    const tips = ['<i class="fas fa-lightbulb"></i> Éteignez les appareils en veille pour économiser jusqu\'à 10%', '<i class="fas fa-temperature-low"></i> ❄️ Dégivrez régulièrement votre réfrigérateur', '<i class="fas fa-water"></i> 💧 Réparez les fuites d\'eau, une goutte/seconde = 15L/jour', '<i class="fas fa-charging-station"></i> 🔌 Débranchez les chargeurs inutilisés', '<i class="fas fa-sun"></i> ☀️ Utilisez la lumière naturelle autant que possible'];
-    const randomTip = tips[Math.floor(Math.random() * tips.length)];
-    tipsContainer.innerHTML = `<p>${randomTip}</p>`;
+    try {
+        const tipsContainer = document.getElementById('tipsList');
+        if (!tipsContainer) return;
+        const tips = ['<i class="fas fa-lightbulb"></i> Éteignez les appareils en veille pour économiser jusqu\'à 10%', '<i class="fas fa-temperature-low"></i> ❄️ Dégivrez régulièrement votre réfrigérateur', '<i class="fas fa-water"></i> 💧 Réparez les fuites d\'eau, une goutte/seconde = 15L/jour', '<i class="fas fa-charging-station"></i> 🔌 Débranchez les chargeurs inutilisés', '<i class="fas fa-sun"></i> ☀️ Utilisez la lumière naturelle autant que possible'];
+        const randomTip = tips[Math.floor(Math.random() * tips.length)];
+        tipsContainer.innerHTML = `<p>${randomTip}</p>`;
+    } catch (error) {
+        console.error("Erreur updateTips:", error);
+    }
 }
 
 function saveMonthlyData() {
-    const period = document.getElementById('period').value;
-    const charges = getTotalCharges();
-    const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    const existingIndex = evolutionData.findIndex(d => d.period === period);
-    const monthlyData = { period: period, total: total, charges: charges.map(c => ({ name: c.personName, amount: c.totalCost })) };
-    if (existingIndex >= 0) evolutionData[existingIndex] = monthlyData;
-    else evolutionData.push(monthlyData);
-    if (evolutionData.length > 12) evolutionData = evolutionData.slice(-12);
-    saveData();
-    updateEvolutionChart();
+    try {
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const charges = getTotalCharges();
+        const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
+        const existingIndex = evolutionData.findIndex(d => d.period === period);
+        const monthlyData = { period: period, total: total, charges: charges.map(c => ({ name: c.personName, amount: c.totalCost })) };
+        if (existingIndex >= 0) evolutionData[existingIndex] = monthlyData;
+        else evolutionData.push(monthlyData);
+        if (evolutionData.length > 12) evolutionData = evolutionData.slice(-12);
+        saveData();
+        updateEvolutionChart();
+    } catch (error) {
+        console.error("Erreur saveMonthlyData:", error);
+    }
 }
 
 function updateEvolutionChart() {
-    const ctx = document.getElementById('evolutionChart');
-    if (!ctx) return;
-    if (evolutionData.length === 0) {
+    try {
+        const ctx = document.getElementById('evolutionChart');
+        if (!ctx) return;
+        if (evolutionData.length === 0) {
+            if (evolutionChart) evolutionChart.destroy();
+            evolutionChart = new Chart(ctx, { type: 'line', data: { labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'], datasets: [{ label: 'Charges totales (Ar)', data: [0, 0, 0, 0, 0, 0], borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#00d4ff', pointBorderColor: 'white', pointRadius: 4, pointHoverRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: 'white' } }, tooltip: { callbacks: { label: (ctx) => `${ctx.raw.toFixed(0)} Ar` } } }, scales: { y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: 'white' }, grid: { display: false } } } } });
+            return;
+        }
+        const sortedData = [...evolutionData].sort((a, b) => a.period.localeCompare(b.period));
+        const labels = sortedData.map(d => { const [year, month] = d.period.split('-'); const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']; return `${monthNames[parseInt(month) - 1]} ${year}`; });
+        const values = sortedData.map(d => d.total);
         if (evolutionChart) evolutionChart.destroy();
-        evolutionChart = new Chart(ctx, { type: 'line', data: { labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'], datasets: [{ label: 'Charges totales (Ar)', data: [0, 0, 0, 0, 0, 0], borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#00d4ff', pointBorderColor: 'white', pointRadius: 4, pointHoverRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: 'white' } }, tooltip: { callbacks: { label: (ctx) => `${ctx.raw.toFixed(0)} Ar` } } }, scales: { y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: 'white' }, grid: { display: false } } } } });
-        return;
+        evolutionChart = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Charges totales (Ar)', data: values, borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#00d4ff', pointBorderColor: 'white', pointRadius: 4, pointHoverRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: 'white' } }, tooltip: { callbacks: { label: (ctx) => `${ctx.raw.toFixed(0)} Ar` } } }, scales: { y: { beginAtZero: true, ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: 'white' }, grid: { display: false } } } } });
+    } catch (error) {
+        console.error("Erreur updateEvolutionChart:", error);
     }
-    const sortedData = [...evolutionData].sort((a, b) => a.period.localeCompare(b.period));
-    const labels = sortedData.map(d => { const [year, month] = d.period.split('-'); const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']; return `${monthNames[parseInt(month) - 1]} ${year}`; });
-    const values = sortedData.map(d => d.total);
-    if (evolutionChart) evolutionChart.destroy();
-    evolutionChart = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Charges totales (Ar)', data: values, borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.1)', fill: true, tension: 0.4, pointBackgroundColor: '#00d4ff', pointBorderColor: 'white', pointRadius: 4, pointHoverRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: 'white' } }, tooltip: { callbacks: { label: (ctx) => `${ctx.raw.toFixed(0)} Ar` } } }, scales: { y: { beginAtZero: true, ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }, x: { ticks: { color: 'white' }, grid: { display: false } } } } });
 }
 
 function refreshEvolutionChart() { updateEvolutionChart(); showNotification('Graphique actualisé', 'success'); }
@@ -938,191 +1147,373 @@ function refreshChart(type) { updateCharts(); showNotification('Graphique actual
 // TRANCHES
 // ========================================
 
-function addElecTranche() { elecTrancheCounter++; electricityTranches.push({ id: elecTrancheCounter, min: 0, max: 100, price: 500 }); renderElecTranches(); }
-function removeElecTranche(btn) { const trancheDiv = btn.closest('.tranche-item'); const id = parseInt(trancheDiv.dataset.id); electricityTranches = electricityTranches.filter(t => t.id !== id); renderElecTranches(); }
+function addElecTranche() { 
+    elecTrancheCounter++; 
+    electricityTranches.push({ id: elecTrancheCounter, min: 0, max: 100, price: 500 }); 
+    renderElecTranches(); 
+}
+
+function removeElecTranche(btn) { 
+    const trancheDiv = btn.closest('.tranche-item'); 
+    const id = parseInt(trancheDiv.dataset.id); 
+    electricityTranches = electricityTranches.filter(t => t.id !== id); 
+    renderElecTranches(); 
+}
+
 function renderElecTranches() {
-    const container = document.getElementById('elecTranchesList');
-    if (!container) return;
-    container.innerHTML = '';
-    electricityTranches.sort((a, b) => a.min - b.min);
-    electricityTranches.forEach((tranche, index) => {
-        const template = document.getElementById('elecTrancheTemplate');
-        if (!template) return;
-        const clone = template.cloneNode(true);
-        clone.removeAttribute('id');
-        clone.style.display = 'block';
-        clone.dataset.id = tranche.id;
-        const numberSpan = clone.querySelector('.tranche-number');
-        if (numberSpan) numberSpan.textContent = index + 1;
-        const minInput = clone.querySelector('.tranche-min');
-        const maxInput = clone.querySelector('.tranche-max');
-        const priceInput = clone.querySelector('.tranche-price');
-        if (minInput) minInput.value = tranche.min;
-        if (maxInput) maxInput.value = tranche.max === Infinity ? '' : tranche.max;
-        if (priceInput) priceInput.value = tranche.price;
-        if (minInput) minInput.onchange = () => updateElecTranche(tranche.id, 'min', parseFloat(minInput.value) || 0);
-        if (maxInput) maxInput.onchange = () => updateElecTranche(tranche.id, 'max', parseFloat(maxInput.value) || Infinity);
-        if (priceInput) priceInput.onchange = () => updateElecTranche(tranche.id, 'price', parseFloat(priceInput.value) || 0);
-        container.appendChild(clone);
-    });
+    try {
+        const container = document.getElementById('elecTranchesList');
+        if (!container) return;
+        container.innerHTML = '';
+        electricityTranches.sort((a, b) => a.min - b.min);
+        electricityTranches.forEach((tranche, index) => {
+            const template = document.getElementById('elecTrancheTemplate');
+            if (!template) return;
+            const clone = template.cloneNode(true);
+            clone.removeAttribute('id');
+            clone.style.display = 'block';
+            clone.dataset.id = tranche.id;
+            const numberSpan = clone.querySelector('.tranche-number');
+            if (numberSpan) numberSpan.textContent = index + 1;
+            const minInput = clone.querySelector('.tranche-min');
+            const maxInput = clone.querySelector('.tranche-max');
+            const priceInput = clone.querySelector('.tranche-price');
+            if (minInput) minInput.value = tranche.min;
+            if (maxInput) maxInput.value = tranche.max === Infinity ? '' : tranche.max;
+            if (priceInput) priceInput.value = tranche.price;
+            if (minInput) minInput.onchange = () => updateElecTranche(tranche.id, 'min', parseFloat(minInput.value) || 0);
+            if (maxInput) maxInput.onchange = () => updateElecTranche(tranche.id, 'max', parseFloat(maxInput.value) || Infinity);
+            if (priceInput) priceInput.onchange = () => updateElecTranche(tranche.id, 'price', parseFloat(priceInput.value) || 0);
+            container.appendChild(clone);
+        });
+    } catch (error) {
+        console.error("Erreur renderElecTranches:", error);
+    }
 }
-function updateElecTranche(id, field, value) { const tranche = electricityTranches.find(t => t.id === id); if (tranche) { tranche[field] = value; electricityTranches.sort((a, b) => a.min - b.min); renderElecTranches(); } }
-function addWaterTranche() { waterTrancheCounter++; waterTranches.push({ id: waterTrancheCounter, min: 0, max: 20, price: 2500 }); renderWaterTranches(); }
-function removeWaterTranche(btn) { const trancheDiv = btn.closest('.tranche-item'); const id = parseInt(trancheDiv.dataset.id); waterTranches = waterTranches.filter(t => t.id !== id); renderWaterTranches(); }
+
+function updateElecTranche(id, field, value) { 
+    const tranche = electricityTranches.find(t => t.id === id); 
+    if (tranche) { 
+        tranche[field] = value; 
+        electricityTranches.sort((a, b) => a.min - b.min); 
+        renderElecTranches(); 
+    } 
+}
+
+function addWaterTranche() { 
+    waterTrancheCounter++; 
+    waterTranches.push({ id: waterTrancheCounter, min: 0, max: 20, price: 2500 }); 
+    renderWaterTranches(); 
+}
+
+function removeWaterTranche(btn) { 
+    const trancheDiv = btn.closest('.tranche-item'); 
+    const id = parseInt(trancheDiv.dataset.id); 
+    waterTranches = waterTranches.filter(t => t.id !== id); 
+    renderWaterTranches(); 
+}
+
 function renderWaterTranches() {
-    const container = document.getElementById('waterTranchesList');
-    if (!container) return;
-    container.innerHTML = '';
-    waterTranches.sort((a, b) => a.min - b.min);
-    waterTranches.forEach((tranche, index) => {
-        const template = document.getElementById('waterTrancheTemplate');
-        if (!template) return;
-        const clone = template.cloneNode(true);
-        clone.removeAttribute('id');
-        clone.style.display = 'block';
-        clone.dataset.id = tranche.id;
-        const numberSpan = clone.querySelector('.tranche-number');
-        if (numberSpan) numberSpan.textContent = index + 1;
-        const minInput = clone.querySelector('.tranche-min');
-        const maxInput = clone.querySelector('.tranche-max');
-        const priceInput = clone.querySelector('.tranche-price');
-        if (minInput) minInput.value = tranche.min;
-        if (maxInput) maxInput.value = tranche.max === Infinity ? '' : tranche.max;
-        if (priceInput) priceInput.value = tranche.price;
-        if (minInput) minInput.onchange = () => updateWaterTranche(tranche.id, 'min', parseFloat(minInput.value) || 0);
-        if (maxInput) maxInput.onchange = () => updateWaterTranche(tranche.id, 'max', parseFloat(maxInput.value) || Infinity);
-        if (priceInput) priceInput.onchange = () => updateWaterTranche(tranche.id, 'price', parseFloat(priceInput.value) || 0);
-        container.appendChild(clone);
-    });
+    try {
+        const container = document.getElementById('waterTranchesList');
+        if (!container) return;
+        container.innerHTML = '';
+        waterTranches.sort((a, b) => a.min - b.min);
+        waterTranches.forEach((tranche, index) => {
+            const template = document.getElementById('waterTrancheTemplate');
+            if (!template) return;
+            const clone = template.cloneNode(true);
+            clone.removeAttribute('id');
+            clone.style.display = 'block';
+            clone.dataset.id = tranche.id;
+            const numberSpan = clone.querySelector('.tranche-number');
+            if (numberSpan) numberSpan.textContent = index + 1;
+            const minInput = clone.querySelector('.tranche-min');
+            const maxInput = clone.querySelector('.tranche-max');
+            const priceInput = clone.querySelector('.tranche-price');
+            if (minInput) minInput.value = tranche.min;
+            if (maxInput) maxInput.value = tranche.max === Infinity ? '' : tranche.max;
+            if (priceInput) priceInput.value = tranche.price;
+            if (minInput) minInput.onchange = () => updateWaterTranche(tranche.id, 'min', parseFloat(minInput.value) || 0);
+            if (maxInput) maxInput.onchange = () => updateWaterTranche(tranche.id, 'max', parseFloat(maxInput.value) || Infinity);
+            if (priceInput) priceInput.onchange = () => updateWaterTranche(tranche.id, 'price', parseFloat(priceInput.value) || 0);
+            container.appendChild(clone);
+        });
+    } catch (error) {
+        console.error("Erreur renderWaterTranches:", error);
+    }
 }
-function updateWaterTranche(id, field, value) { const tranche = waterTranches.find(t => t.id === id); if (tranche) { tranche[field] = value; waterTranches.sort((a, b) => a.min - b.min); renderWaterTranches(); } }
+
+function updateWaterTranche(id, field, value) { 
+    const tranche = waterTranches.find(t => t.id === id); 
+    if (tranche) { 
+        tranche[field] = value; 
+        waterTranches.sort((a, b) => a.min - b.min); 
+        renderWaterTranches(); 
+    } 
+}
 
 // ========================================
 // DÉPENSES COMMUNES
 // ========================================
 
-function addExpense(description, amount, date) { commonExpenses.push({ id: Date.now(), description, amount: parseFloat(amount), date: date || new Date().toISOString().split('T')[0], paidBy: null }); saveData(); updateExpensesList(); showNotification('Dépense ajoutée', 'success'); }
-function deleteExpense(id) { if (confirm('Supprimer cette dépense ?')) { commonExpenses = commonExpenses.filter(e => e.id !== id); saveData(); updateExpensesList(); showNotification('Dépense supprimée', 'success'); } }
-function calculateExpenseSharing() { const totalExpenses = commonExpenses.reduce((sum, e) => sum + e.amount, 0); const perPerson = totalExpenses / (persons.length || 1); return { totalExpenses, perPerson }; }
-function updateExpensesList() {
-    const container = document.getElementById('commonExpensesList');
-    if (!container) return;
-    if (commonExpenses.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px;">Aucune dépense commune enregistrée</p>'; return; }
-    const { totalExpenses, perPerson } = calculateExpenseSharing();
-    container.innerHTML = `<div style="background: rgba(0,212,255,0.1); padding: 12px; border-radius: 12px; margin-bottom: 15px;"><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Total des dépenses :</span><strong style="color: #00d4ff;">${totalExpenses.toFixed(0)} Ar</strong></div><div style="display: flex; justify-content: space-between;"><span>Part par personne :</span><strong>${perPerson.toFixed(0)} Ar</strong></div></div><div style="max-height: 300px; overflow-y: auto;">${commonExpenses.map(expense => `<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid rgba(0,212,255,0.2);"><div><div><strong>${escapeHtml(expense.description)}</strong></div><small style="color: rgba(255,255,255,0.5);">${expense.date}</small></div><div style="display: flex; align-items: center; gap: 12px;"><span style="color: #ff6b6b;">${expense.amount.toFixed(0)} Ar</span><button class="btn-icon delete" onclick="deleteExpense(${expense.id})" style="padding: 4px 8px;"><i class="fas fa-trash"></i></button></div></div>`).join('')}</div>`;
+function addExpense(description, amount, date) { 
+    commonExpenses.push({ id: Date.now(), description, amount: parseFloat(amount), date: date || new Date().toISOString().split('T')[0], paidBy: null }); 
+    saveData(); 
+    updateExpensesList(); 
+    showNotification('Dépense ajoutée', 'success'); 
 }
-function showExpenseModal() { const description = prompt("Description de la dépense :"); if (!description) return; const amount = prompt("Montant (Ar) :"); if (!amount || isNaN(amount)) return; const date = prompt("Date (AAAA-MM-JJ) :", new Date().toISOString().split('T')[0]); addExpense(description, amount, date); }
+
+function deleteExpense(id) { 
+    if (confirm('Supprimer cette dépense ?')) { 
+        commonExpenses = commonExpenses.filter(e => e.id !== id); 
+        saveData(); 
+        updateExpensesList(); 
+        showNotification('Dépense supprimée', 'success'); 
+    } 
+}
+
+function calculateExpenseSharing() { 
+    const totalExpenses = commonExpenses.reduce((sum, e) => sum + e.amount, 0); 
+    const perPerson = totalExpenses / (persons.length || 1); 
+    return { totalExpenses, perPerson }; 
+}
+
+function updateExpensesList() {
+    try {
+        const container = document.getElementById('commonExpensesList');
+        if (!container) return;
+        if (commonExpenses.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5); padding: 20px;">Aucune dépense commune enregistrée</p>'; return; }
+        const { totalExpenses, perPerson } = calculateExpenseSharing();
+        container.innerHTML = `<div style="background: rgba(0,212,255,0.1); padding: 12px; border-radius: 12px; margin-bottom: 15px;"><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Total des dépenses :</span><strong style="color: #00d4ff;">${totalExpenses.toFixed(0)} Ar</strong></div><div style="display: flex; justify-content: space-between;"><span>Part par personne :</span><strong>${perPerson.toFixed(0)} Ar</strong></div></div><div style="max-height: 300px; overflow-y: auto;">${commonExpenses.map(expense => `<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid rgba(0,212,255,0.2);"><div><div><strong>${escapeHtml(expense.description)}</strong></div><small style="color: rgba(255,255,255,0.5);">${expense.date}</small></div><div style="display: flex; align-items: center; gap: 12px;"><span style="color: #ff6b6b;">${expense.amount.toFixed(0)} Ar</span><button class="btn-icon delete" onclick="deleteExpense(${expense.id})" style="padding: 4px 8px;"><i class="fas fa-trash"></i></button></div></div>`).join('')}</div>`;
+    } catch (error) {
+        console.error("Erreur updateExpensesList:", error);
+    }
+}
+
+function showExpenseModal() { 
+    const description = prompt("Description de la dépense :"); 
+    if (!description) return; 
+    const amount = prompt("Montant (Ar) :"); 
+    if (!amount || isNaN(amount)) return; 
+    const date = prompt("Date (AAAA-MM-JJ) :", new Date().toISOString().split('T')[0]); 
+    addExpense(description, amount, date); 
+}
 
 // ========================================
 // INVITÉS
 // ========================================
 
 function showGuestModal() {
-    const modalHtml = `<div id="guestModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-user-clock"></i> Gestion des invités</h3><span class="close" onclick="closeGuestModal()">&times;</span></div><div class="modal-body"><div id="guestsList"></div><button class="btn-glow" onclick="addGuest()" style="width: 100%; margin-top: 15px;"><i class="fas fa-plus"></i> Ajouter un invité</button></div></div></div>`;
-    if (document.getElementById('guestModal')) document.getElementById('guestModal').remove();
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    updateGuestsList();
-    document.getElementById('guestModal').style.display = 'block';
+    try {
+        const modalHtml = `<div id="guestModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-user-clock"></i> Gestion des invités</h3><span class="close" onclick="closeGuestModal()">&times;</span></div><div class="modal-body"><div id="guestsList"></div><button class="btn-glow" onclick="addGuest()" style="width: 100%; margin-top: 15px;"><i class="fas fa-plus"></i> Ajouter un invité</button></div></div></div>`;
+        const existingModal = document.getElementById('guestModal');
+        if (existingModal) existingModal.remove();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        updateGuestsList();
+        const modal = document.getElementById('guestModal');
+        if (modal) modal.style.display = 'block';
+    } catch (error) {
+        console.error("Erreur showGuestModal:", error);
+    }
 }
-function closeGuestModal() { const modal = document.getElementById('guestModal'); if (modal) modal.remove(); }
-function addGuest() { const name = prompt("Nom de l'invité :"); if (!name) return; const days = parseInt(prompt("Nombre de jours de présence :", "7")); if (isNaN(days)) return; guests.push({ id: Date.now(), name, days, coefficient: days / 30 }); updateGuestsList(); showNotification(`Invité ${name} ajouté pour ${days} jours`, 'success'); }
-function removeGuest(id) { if (confirm('Supprimer cet invité ?')) { guests = guests.filter(g => g.id !== id); updateGuestsList(); showNotification('Invité supprimé', 'success'); } }
+
+function closeGuestModal() { 
+    const modal = document.getElementById('guestModal'); 
+    if (modal) modal.remove(); 
+}
+
+function addGuest() { 
+    const name = prompt("Nom de l'invité :"); 
+    if (!name) return; 
+    const days = parseInt(prompt("Nombre de jours de présence :", "7")); 
+    if (isNaN(days)) return; 
+    guests.push({ id: Date.now(), name, days, coefficient: days / 30 }); 
+    updateGuestsList(); 
+    showNotification(`Invité ${name} ajouté pour ${days} jours`, 'success'); 
+}
+
+function removeGuest(id) { 
+    if (confirm('Supprimer cet invité ?')) { 
+        guests = guests.filter(g => g.id !== id); 
+        updateGuestsList(); 
+        showNotification('Invité supprimé', 'success'); 
+    } 
+}
+
 function updateGuestsList() {
-    const container = document.getElementById('guestsList');
-    if (!container) return;
-    if (guests.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5);">Aucun invité enregistré</p>'; return; }
-    container.innerHTML = guests.map(guest => `<div class="person-card" style="margin-bottom: 10px;"><h3><i class="fas fa-user-clock"></i> ${escapeHtml(guest.name)}</h3><p><i class="fas fa-calendar"></i> Présence: ${guest.days} jours</p><p><i class="fas fa-chart-line"></i> Coefficient: ${(guest.coefficient * 100).toFixed(0)}%</p><div class="card-actions"><button class="btn-icon delete" onclick="removeGuest(${guest.id})"><i class="fas fa-trash"></i> Supprimer</button></div></div>`).join('');
+    try {
+        const container = document.getElementById('guestsList');
+        if (!container) return;
+        if (guests.length === 0) { container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.5);">Aucun invité enregistré</p>'; return; }
+        container.innerHTML = guests.map(guest => `<div class="person-card" style="margin-bottom: 10px;"><h3><i class="fas fa-user-clock"></i> ${escapeHtml(guest.name)}</h3><p><i class="fas fa-calendar"></i> Présence: ${guest.days} jours</p><p><i class="fas fa-chart-line"></i> Coefficient: ${(guest.coefficient * 100).toFixed(0)}%</p><div class="card-actions"><button class="btn-icon delete" onclick="removeGuest(${guest.id})"><i class="fas fa-trash"></i> Supprimer</button></div></div>`).join('');
+    } catch (error) {
+        console.error("Erreur updateGuestsList:", error);
+    }
 }
 
 // ========================================
 // COMPTES VIRTUELS
 // ========================================
 
-function initVirtualAccounts() { persons.forEach(person => { if (!virtualAccounts[person.id]) virtualAccounts[person.id] = { balance: 0, transactions: [] }; }); }
-function addTransaction(personId, amount, description) { if (!virtualAccounts[personId]) virtualAccounts[personId] = { balance: 0, transactions: [] }; virtualAccounts[personId].balance += amount; virtualAccounts[personId].transactions.unshift({ id: Date.now(), date: new Date().toISOString(), amount, description, type: amount > 0 ? 'credit' : 'debit' }); saveData(); updateBalanceDisplay(); }
+function initVirtualAccounts() { 
+    persons.forEach(person => { 
+        if (!virtualAccounts[person.id]) virtualAccounts[person.id] = { balance: 0, transactions: [] }; 
+    }); 
+}
+
+function addTransaction(personId, amount, description) { 
+    if (!virtualAccounts[personId]) virtualAccounts[personId] = { balance: 0, transactions: [] }; 
+    virtualAccounts[personId].balance += amount; 
+    virtualAccounts[personId].transactions.unshift({ id: Date.now(), date: new Date().toISOString(), amount, description, type: amount > 0 ? 'credit' : 'debit' }); 
+    saveData(); 
+    updateBalanceDisplay(); 
+}
+
 function showBalanceModal() {
-    const modalHtml = `<div id="balanceModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-wallet"></i> Comptes virtuels</h3><span class="close" onclick="closeBalanceModal()">&times;</span></div><div class="modal-body" id="balanceList"></div></div></div>`;
-    if (document.getElementById('balanceModal')) document.getElementById('balanceModal').remove();
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    updateBalanceDisplay();
-    document.getElementById('balanceModal').style.display = 'block';
-}
-function closeBalanceModal() { const modal = document.getElementById('balanceModal'); if (modal) modal.remove(); }
-function updateBalanceDisplay() {
-    const container = document.getElementById('balanceList');
-    if (!container) return;
-    const charges = getTotalCharges();
-    container.innerHTML = `<div style="max-height: 500px; overflow-y: auto;">${persons.map(person => {
-        const account = virtualAccounts[person.id] || { balance: 0, transactions: [] };
-        const charge = charges.find(c => c.personId === person.id);
-        const amountDue = charge ? charge.totalCost : 0;
-        const netBalance = account.balance - amountDue;
-        return `<div class="settings-card" style="margin-bottom: 20px;"><h3 style="color: #00d4ff; margin-bottom: 15px;"><i class="fas fa-user"></i> ${escapeHtml(person.name)}</h3><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;"><div><small>Solde actuel</small><p style="font-size: 20px; font-weight: bold; color: #51cf66;">${account.balance.toFixed(0)} Ar</p></div><div><small>À payer</small><p style="font-size: 20px; font-weight: bold; color: #ff6b6b;">${amountDue.toFixed(0)} Ar</p></div><div><small>Situation</small><p style="font-size: 20px; font-weight: bold; color: ${netBalance >= 0 ? '#51cf66' : '#ff6b6b'}">${netBalance >= 0 ? 'Créditeur' : 'Débiteur'} (${Math.abs(netBalance).toFixed(0)} Ar)</p></div></div><div style="margin-top: 15px;"><button class="btn-outline" onclick="showAddTransactionModal(${person.id}, '${escapeHtml(person.name)}')" style="width: 100%;"><i class="fas fa-plus"></i> Ajouter une transaction</button></div>${account.transactions.length > 0 ? `<div style="margin-top: 15px;"><small>Dernières transactions</small><div style="max-height: 150px; overflow-y: auto; margin-top: 8px;">${account.transactions.slice(0, 5).map(t => `<div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1);"><span style="font-size: 11px;">${new Date(t.date).toLocaleDateString()}</span><span style="font-size: 11px;">${t.description}</span><span style="color: ${t.amount > 0 ? '#51cf66' : '#ff6b6b'}; font-weight: bold;">${t.amount > 0 ? '+' : ''}${t.amount.toFixed(0)} Ar</span></div>`).join('')}</div></div>` : ''}</div>`;
-    }).join('')}</div><div style="margin-top: 20px;"><button class="btn-glow" onclick="settleBalances()" style="width: 100%;"><i class="fas fa-hand-holding-usd"></i> Proposer un règlement</button></div>`;
-}
-function showAddTransactionModal(personId, personName) { const amount = prompt(`Montant pour ${personName} (Ar) :\nPositif = crédit, Négatif = débit`, "0"); if (amount === null) return; const numAmount = parseFloat(amount); if (isNaN(numAmount)) return; const description = prompt("Description de la transaction :", "Paiement facture"); if (!description) return; addTransaction(personId, numAmount, description); closeBalanceModal(); showBalanceModal(); }
-function settleBalances() {
-    const charges = getTotalCharges();
-    const balances = persons.map(person => { const account = virtualAccounts[person.id] || { balance: 0 }; const charge = charges.find(c => c.personId === person.id); const amountDue = charge ? charge.totalCost : 0; return { id: person.id, name: person.name, netBalance: account.balance - amountDue }; });
-    const creditors = balances.filter(b => b.netBalance > 0).sort((a, b) => b.netBalance - a.netBalance);
-    const debtors = balances.filter(b => b.netBalance < 0).sort((a, b) => a.netBalance - b.netBalance);
-    if (creditors.length === 0 || debtors.length === 0) { showNotification('Tous les comptes sont équilibrés !', 'success'); return; }
-    let settlementPlan = [], i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-        let debtor = debtors[i], creditor = creditors[j];
-        let amount = Math.min(Math.abs(debtor.netBalance), creditor.netBalance);
-        if (amount > 0) { settlementPlan.push({ from: debtor.name, to: creditor.name, amount }); debtor.netBalance += amount; creditor.netBalance -= amount; }
-        if (debtor.netBalance >= 0) i++;
-        if (creditor.netBalance <= 0) j++;
+    try {
+        const modalHtml = `<div id="balanceModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-wallet"></i> Comptes virtuels</h3><span class="close" onclick="closeBalanceModal()">&times;</span></div><div class="modal-body" id="balanceList"></div></div></div>`;
+        const existingModal = document.getElementById('balanceModal');
+        if (existingModal) existingModal.remove();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        updateBalanceDisplay();
+        const modal = document.getElementById('balanceModal');
+        if (modal) modal.style.display = 'block';
+    } catch (error) {
+        console.error("Erreur showBalanceModal:", error);
     }
-    let message = "💰 Proposition de règlement :\n\n";
-    settlementPlan.forEach(plan => { message += `${plan.from} doit payer ${plan.amount.toFixed(0)} Ar à ${plan.to}\n`; });
-    alert(message);
+}
+
+function closeBalanceModal() { 
+    const modal = document.getElementById('balanceModal'); 
+    if (modal) modal.remove(); 
+}
+
+function updateBalanceDisplay() {
+    try {
+        const container = document.getElementById('balanceList');
+        if (!container) return;
+        const charges = getTotalCharges();
+        container.innerHTML = `<div style="max-height: 500px; overflow-y: auto;">${persons.map(person => {
+            const account = virtualAccounts[person.id] || { balance: 0, transactions: [] };
+            const charge = charges.find(c => c.personId === person.id);
+            const amountDue = charge ? charge.totalCost : 0;
+            const netBalance = account.balance - amountDue;
+            return `<div class="settings-card" style="margin-bottom: 20px;"><h3 style="color: #00d4ff; margin-bottom: 15px;"><i class="fas fa-user"></i> ${escapeHtml(person.name)}</h3><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;"><div><small>Solde actuel</small><p style="font-size: 20px; font-weight: bold; color: #51cf66;">${account.balance.toFixed(0)} Ar</p></div><div><small>À payer</small><p style="font-size: 20px; font-weight: bold; color: #ff6b6b;">${amountDue.toFixed(0)} Ar</p></div><div><small>Situation</small><p style="font-size: 20px; font-weight: bold; color: ${netBalance >= 0 ? '#51cf66' : '#ff6b6b'}">${netBalance >= 0 ? 'Créditeur' : 'Débiteur'} (${Math.abs(netBalance).toFixed(0)} Ar)</p></div></div><div style="margin-top: 15px;"><button class="btn-outline" onclick="showAddTransactionModal(${person.id}, '${escapeHtml(person.name)}')" style="width: 100%;"><i class="fas fa-plus"></i> Ajouter une transaction</button></div>${account.transactions.length > 0 ? `<div style="margin-top: 15px;"><small>Dernières transactions</small><div style="max-height: 150px; overflow-y: auto; margin-top: 8px;">${account.transactions.slice(0, 5).map(t => `<div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1);"><span style="font-size: 11px;">${new Date(t.date).toLocaleDateString()}</span><span style="font-size: 11px;">${t.description}</span><span style="color: ${t.amount > 0 ? '#51cf66' : '#ff6b6b'}; font-weight: bold;">${t.amount > 0 ? '+' : ''}${t.amount.toFixed(0)} Ar</span></div>`).join('')}</div></div>` : ''}</div>`;
+        }).join('')}</div><div style="margin-top: 20px;"><button class="btn-glow" onclick="settleBalances()" style="width: 100%;"><i class="fas fa-hand-holding-usd"></i> Proposer un règlement</button></div>`;
+    } catch (error) {
+        console.error("Erreur updateBalanceDisplay:", error);
+    }
+}
+
+function showAddTransactionModal(personId, personName) { 
+    const amount = prompt(`Montant pour ${personName} (Ar) :\nPositif = crédit, Négatif = débit`, "0"); 
+    if (amount === null) return; 
+    const numAmount = parseFloat(amount); 
+    if (isNaN(numAmount)) return; 
+    const description = prompt("Description de la transaction :", "Paiement facture"); 
+    if (!description) return; 
+    addTransaction(personId, numAmount, description); 
+    closeBalanceModal(); 
+    showBalanceModal(); 
+}
+
+function settleBalances() {
+    try {
+        const charges = getTotalCharges();
+        const balances = persons.map(person => { 
+            const account = virtualAccounts[person.id] || { balance: 0 }; 
+            const charge = charges.find(c => c.personId === person.id); 
+            const amountDue = charge ? charge.totalCost : 0; 
+            return { id: person.id, name: person.name, netBalance: account.balance - amountDue }; 
+        });
+        const creditors = balances.filter(b => b.netBalance > 0).sort((a, b) => b.netBalance - a.netBalance);
+        const debtors = balances.filter(b => b.netBalance < 0).sort((a, b) => a.netBalance - b.netBalance);
+        if (creditors.length === 0 || debtors.length === 0) { showNotification('Tous les comptes sont équilibrés !', 'success'); return; }
+        let settlementPlan = [], i = 0, j = 0;
+        while (i < debtors.length && j < creditors.length) {
+            let debtor = debtors[i], creditor = creditors[j];
+            let amount = Math.min(Math.abs(debtor.netBalance), creditor.netBalance);
+            if (amount > 0) { settlementPlan.push({ from: debtor.name, to: creditor.name, amount }); debtor.netBalance += amount; creditor.netBalance -= amount; }
+            if (debtor.netBalance >= 0) i++;
+            if (creditor.netBalance <= 0) j++;
+        }
+        let message = "💰 Proposition de règlement :\n\n";
+        settlementPlan.forEach(plan => { message += `${plan.from} doit payer ${plan.amount.toFixed(0)} Ar à ${plan.to}\n`; });
+        alert(message);
+    } catch (error) {
+        console.error("Erreur settleBalances:", error);
+    }
 }
 
 // ========================================
 // WIDGETS
 // ========================================
 
-function updateWidgets() { updateUpcomingDueWidget(); updatePendingPaymentsWidget(); updateBudgetRemainingWidget(); updateTopAppliancesWidget(); }
+function updateWidgets() { 
+    updateUpcomingDueWidget(); 
+    updatePendingPaymentsWidget(); 
+    updateBudgetRemainingWidget(); 
+    updateTopAppliancesWidget(); 
+}
+
 function updateUpcomingDueWidget() {
-    const container = document.getElementById('upcomingDueWidget');
-    if (!container) return;
-    const period = document.getElementById('period').value;
-    const [year, month] = period.split('-');
-    const dueDate = new Date(year, month, 1);
-    dueDate.setMonth(dueDate.getMonth() + 1);
-    const today = new Date();
-    const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    container.innerHTML = `<div class="widget-item"><span class="label">Prochaine échéance</span><span class="value ${daysUntilDue <= 7 ? 'urgent' : ''}">${dueDate.toLocaleDateString('fr-FR')}</span></div><div class="widget-item"><span class="label">Jours restants</span><span class="value ${daysUntilDue <= 7 ? 'urgent' : ''}">${daysUntilDue} jour(s)</span></div><div class="widget-item"><span class="label">Période</span><span class="value">${monthNames[parseInt(month) - 1]} ${year}</span></div>`;
+    try {
+        const container = document.getElementById('upcomingDueWidget');
+        if (!container) return;
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const [year, month] = period.split('-');
+        const dueDate = new Date(year, month, 1);
+        dueDate.setMonth(dueDate.getMonth() + 1);
+        const today = new Date();
+        const daysUntilDue = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        container.innerHTML = `<div class="widget-item"><span class="label">Prochaine échéance</span><span class="value ${daysUntilDue <= 7 ? 'urgent' : ''}">${dueDate.toLocaleDateString('fr-FR')}</span></div><div class="widget-item"><span class="label">Jours restants</span><span class="value ${daysUntilDue <= 7 ? 'urgent' : ''}">${daysUntilDue} jour(s)</span></div><div class="widget-item"><span class="label">Période</span><span class="value">${monthNames[parseInt(month) - 1]} ${year}</span></div>`;
+    } catch (error) {
+        console.error("Erreur updateUpcomingDueWidget:", error);
+    }
 }
+
 function updatePendingPaymentsWidget() {
-    const container = document.getElementById('pendingPaymentsWidget');
-    if (!container) return;
-    const charges = getTotalCharges();
-    const unpaid = charges.filter(c => { const statusSpan = document.getElementById(`status-${c.personId}`); return statusSpan && statusSpan.textContent === 'Non payé'; });
-    const totalUnpaid = unpaid.reduce((sum, c) => sum + c.totalCost, 0);
-    if (unpaid.length === 0) { container.innerHTML = '<div class="widget-item"><span class="label">✅ Tout est payé !</span></div>'; return; }
-    container.innerHTML = `<div class="widget-item"><span class="label">Nombre de paiements</span><span class="value urgent">${unpaid.length}</span></div><div class="widget-item"><span class="label">Montant total dû</span><span class="value urgent">${totalUnpaid.toFixed(0)} Ar</span></div>${unpaid.slice(0, 3).map(c => `<div class="widget-item"><span class="label">${escapeHtml(c.personName)}</span><span class="value">${c.totalCost.toFixed(0)} Ar</span></div>`).join('')}${unpaid.length > 3 ? `<div class="widget-item"><span class="label">...</span><span class="value">+${unpaid.length - 3} autre(s)</span></div>` : ''}`;
+    try {
+        const container = document.getElementById('pendingPaymentsWidget');
+        if (!container) return;
+        const charges = getTotalCharges();
+        const unpaid = charges.filter(c => { const statusSpan = document.getElementById(`status-${c.personId}`); return statusSpan && statusSpan.textContent === 'Non payé'; });
+        const totalUnpaid = unpaid.reduce((sum, c) => sum + c.totalCost, 0);
+        if (unpaid.length === 0) { container.innerHTML = '<div class="widget-item"><span class="label">✅ Tout est payé !</span></div>'; return; }
+        container.innerHTML = `<div class="widget-item"><span class="label">Nombre de paiements</span><span class="value urgent">${unpaid.length}</span></div><div class="widget-item"><span class="label">Montant total dû</span><span class="value urgent">${totalUnpaid.toFixed(0)} Ar</span></div>${unpaid.slice(0, 3).map(c => `<div class="widget-item"><span class="label">${escapeHtml(c.personName)}</span><span class="value">${c.totalCost.toFixed(0)} Ar</span></div>`).join('')}${unpaid.length > 3 ? `<div class="widget-item"><span class="label">...</span><span class="value">+${unpaid.length - 3} autre(s)</span></div>` : ''}`;
+    } catch (error) {
+        console.error("Erreur updatePendingPaymentsWidget:", error);
+    }
 }
+
 function updateBudgetRemainingWidget() {
-    const container = document.getElementById('budgetRemainingWidget');
-    if (!container) return;
-    const charges = getTotalCharges();
-    const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    let estimatedBudget = 100000;
-    if (evolutionData.length > 0) { const lastMonths = [...evolutionData].slice(-3); estimatedBudget = lastMonths.reduce((sum, m) => sum + m.total, 0) / lastMonths.length; }
-    const remaining = estimatedBudget - total;
-    const percent = estimatedBudget > 0 ? (total / estimatedBudget) * 100 : 0;
-    container.innerHTML = `<div class="widget-item"><span class="label">Budget estimé</span><span class="value">${estimatedBudget.toFixed(0)} Ar</span></div><div class="widget-item"><span class="label">Dépenses actuelles</span><span class="value">${total.toFixed(0)} Ar</span></div><div class="widget-item"><span class="label">Reste</span><span class="value ${remaining < 0 ? 'urgent' : ''}">${remaining.toFixed(0)} Ar</span></div><div class="widget-progress"><div class="widget-progress-bar"><div class="widget-progress-fill" style="width: ${Math.min(percent, 100)}%"></div></div><small style="display: block; text-align: center; margin-top: 5px;">${percent.toFixed(1)}% utilisé</small></div>`;
+    try {
+        const container = document.getElementById('budgetRemainingWidget');
+        if (!container) return;
+        const charges = getTotalCharges();
+        const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
+        let estimatedBudget = 100000;
+        if (evolutionData.length > 0) { const lastMonths = [...evolutionData].slice(-3); estimatedBudget = lastMonths.reduce((sum, m) => sum + m.total, 0) / lastMonths.length; }
+        const remaining = estimatedBudget - total;
+        const percent = estimatedBudget > 0 ? (total / estimatedBudget) * 100 : 0;
+        container.innerHTML = `<div class="widget-item"><span class="label">Budget estimé</span><span class="value">${estimatedBudget.toFixed(0)} Ar</span></div><div class="widget-item"><span class="label">Dépenses actuelles</span><span class="value">${total.toFixed(0)} Ar</span></div><div class="widget-item"><span class="label">Reste</span><span class="value ${remaining < 0 ? 'urgent' : ''}">${remaining.toFixed(0)} Ar</span></div><div class="widget-progress"><div class="widget-progress-bar"><div class="widget-progress-fill" style="width: ${Math.min(percent, 100)}%"></div></div><small style="display: block; text-align: center; margin-top: 5px;">${percent.toFixed(1)}% utilisé</small></div>`;
+    } catch (error) {
+        console.error("Erreur updateBudgetRemainingWidget:", error);
+    }
 }
+
 function updateTopAppliancesWidget() {
-    const container = document.getElementById('topAppliancesWidget');
-    if (!container) return;
-    const topAppliances = [...appliances].sort((a, b) => b.consumption - a.consumption).slice(0, 5);
-    if (topAppliances.length === 0) { container.innerHTML = '<div class="widget-item"><span class="label">Aucun appareil enregistré</span></div>'; return; }
-    container.innerHTML = topAppliances.map(app => `<div class="widget-item"><span class="label">${escapeHtml(app.name)}</span><span class="value">${app.consumption.toFixed(1)} kWh</span></div>`).join('');
+    try {
+        const container = document.getElementById('topAppliancesWidget');
+        if (!container) return;
+        const topAppliances = [...appliances].sort((a, b) => (b.consumption || 0) - (a.consumption || 0)).slice(0, 5);
+        if (topAppliances.length === 0) { container.innerHTML = '<div class="widget-item"><span class="label">Aucun appareil enregistré</span></div>'; return; }
+        container.innerHTML = topAppliances.map(app => `<div class="widget-item"><span class="label">${escapeHtml(app.name)}</span><span class="value">${(app.consumption || 0).toFixed(1)} kWh</span></div>`).join('');
+    } catch (error) {
+        console.error("Erreur updateTopAppliancesWidget:", error);
+    }
 }
 
 // ========================================
@@ -1130,47 +1521,57 @@ function updateTopAppliancesWidget() {
 // ========================================
 
 function renderCalendar() {
-    const container = document.getElementById('calendarView');
-    if (!container) return;
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const firstDay = new Date(currentYear, currentMonth, 1);
-    const lastDay = new Date(currentYear, currentMonth + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startWeekday = firstDay.getDay();
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const period = document.getElementById('period').value;
-    const [year, month] = period.split('-');
-    const dueDate = new Date(year, month, 1);
-    dueDate.setMonth(dueDate.getMonth() + 1);
-    const dueDay = dueDate.getDate();
-    let calendarHtml = `<div style="text-align: center; margin-bottom: 15px;"><h4 style="color: #00d4ff;">${monthNames[currentMonth]} ${currentYear}</h4></div><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"><div style="color: #ff6b6b; padding: 8px;">D</div><div style="color: white; padding: 8px;">L</div><div style="color: white; padding: 8px;">M</div><div style="color: white; padding: 8px;">M</div><div style="color: white; padding: 8px;">J</div><div style="color: white; padding: 8px;">V</div><div style="color: white; padding: 8px;">S</div>`;
-    for (let i = 0; i < startWeekday; i++) calendarHtml += `<div style="padding: 8px; opacity: 0.3;">-</div>`;
-    for (let day = 1; day <= daysInMonth; day++) {
-        const isDue = (day === dueDay);
-        const isToday = (day === today.getDate() && currentMonth === today.getMonth());
-        calendarHtml += `<div style="padding: 8px; border-radius: 8px; background: ${isDue ? 'rgba(0,212,255,0.2)' : 'transparent'}; border: ${isToday ? '1px solid #00d4ff' : 'none'}; cursor: pointer;" onclick="showDayDetails(${day})"><div style="font-weight: ${isDue ? 'bold' : 'normal'}; color: ${isDue ? '#00d4ff' : 'white'};">${day}</div>${isDue ? '<div style="font-size: 10px;">📅 Échéance</div>' : ''}</div>`;
-    }
-    calendarHtml += `</div>`;
-    const charges = getTotalCharges();
-    const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    calendarHtml += `<div style="margin-top: 20px; padding: 15px; background: rgba(0,212,255,0.1); border-radius: 12px;"><div style="display: flex; justify-content: space-between;"><span>📊 Total des charges</span><span style="color: #00d4ff; font-weight: bold;">${total.toFixed(0)} Ar</span></div><div style="display: flex; justify-content: space-between; margin-top: 8px;"><span>📅 Prochaine échéance</span><span>${dueDate.toLocaleDateString('fr-FR')}</span></div></div>`;
-    container.innerHTML = calendarHtml;
-}
-function showDayDetails(day) {
-    const period = document.getElementById('period').value;
-    const [year, month] = period.split('-');
-    const dueDate = new Date(year, month, 1);
-    dueDate.setMonth(dueDate.getMonth() + 1);
-    if (day === dueDate.getDate()) {
+    try {
+        const container = document.getElementById('calendarView');
+        if (!container) return;
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        const firstDay = new Date(currentYear, currentMonth, 1);
+        const lastDay = new Date(currentYear, currentMonth + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startWeekday = firstDay.getDay();
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const [year, month] = period.split('-');
+        const dueDate = new Date(year, month, 1);
+        dueDate.setMonth(dueDate.getMonth() + 1);
+        const dueDay = dueDate.getDate();
+        let calendarHtml = `<div style="text-align: center; margin-bottom: 15px;"><h4 style="color: #00d4ff;">${monthNames[currentMonth]} ${currentYear}</h4></div><div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center;"><div style="color: #ff6b6b; padding: 8px;">D</div><div style="color: white; padding: 8px;">L</div><div style="color: white; padding: 8px;">M</div><div style="color: white; padding: 8px;">M</div><div style="color: white; padding: 8px;">J</div><div style="color: white; padding: 8px;">V</div><div style="color: white; padding: 8px;">S</div>`;
+        for (let i = 0; i < startWeekday; i++) calendarHtml += `<div style="padding: 8px; opacity: 0.3;">-</div>`;
+        for (let day = 1; day <= daysInMonth; day++) {
+            const isDue = (day === dueDay);
+            const isToday = (day === today.getDate() && currentMonth === today.getMonth());
+            calendarHtml += `<div style="padding: 8px; border-radius: 8px; background: ${isDue ? 'rgba(0,212,255,0.2)' : 'transparent'}; border: ${isToday ? '1px solid #00d4ff' : 'none'}; cursor: pointer;" onclick="showDayDetails(${day})"><div style="font-weight: ${isDue ? 'bold' : 'normal'}; color: ${isDue ? '#00d4ff' : 'white'};">${day}</div>${isDue ? '<div style="font-size: 10px;">📅 Échéance</div>' : ''}</div>`;
+        }
+        calendarHtml += `</div>`;
         const charges = getTotalCharges();
         const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-        let message = `📅 Échéance du ${dueDate.toLocaleDateString('fr-FR')}\n\nTotal des charges : ${total.toFixed(0)} Ar\n\nRépartition :\n`;
-        charges.forEach(c => { message += `- ${c.personName}: ${c.totalCost.toFixed(0)} Ar\n`; });
-        alert(message);
-    } else { showNotification(`Aucun événement pour le ${day}`, 'info'); }
+        calendarHtml += `<div style="margin-top: 20px; padding: 15px; background: rgba(0,212,255,0.1); border-radius: 12px;"><div style="display: flex; justify-content: space-between;"><span>📊 Total des charges</span><span style="color: #00d4ff; font-weight: bold;">${total.toFixed(0)} Ar</span></div><div style="display: flex; justify-content: space-between; margin-top: 8px;"><span>📅 Prochaine échéance</span><span>${dueDate.toLocaleDateString('fr-FR')}</span></div></div>`;
+        container.innerHTML = calendarHtml;
+    } catch (error) {
+        console.error("Erreur renderCalendar:", error);
+    }
 }
+
+function showDayDetails(day) {
+    try {
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const [year, month] = period.split('-');
+        const dueDate = new Date(year, month, 1);
+        dueDate.setMonth(dueDate.getMonth() + 1);
+        if (day === dueDate.getDate()) {
+            const charges = getTotalCharges();
+            const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
+            let message = `📅 Échéance du ${dueDate.toLocaleDateString('fr-FR')}\n\nTotal des charges : ${total.toFixed(0)} Ar\n\nRépartition :\n`;
+            charges.forEach(c => { message += `- ${c.personName}: ${c.totalCost.toFixed(0)} Ar\n`; });
+            alert(message);
+        } else { showNotification(`Aucun événement pour le ${day}`, 'info'); }
+    } catch (error) {
+        console.error("Erreur showDayDetails:", error);
+    }
+}
+
 function refreshCalendar() { renderCalendar(); showNotification('Calendrier actualisé', 'success'); }
 
 // ========================================
@@ -1178,26 +1579,36 @@ function refreshCalendar() { renderCalendar(); showNotification('Calendrier actu
 // ========================================
 
 function calculateForecast() {
-    if (evolutionData.length < 2) return { hasData: false, message: "Données insuffisantes pour une prévision (minimum 2 mois)" };
-    const lastMonths = [...evolutionData].slice(-3);
-    const total = lastMonths.reduce((sum, m) => sum + m.total, 0);
-    const average = total / lastMonths.length;
-    const lastMonth = lastMonths[lastMonths.length - 1];
-    const lastTotal = lastMonth.total;
-    const variation = ((average - lastTotal) / lastTotal) * 100;
-    const forecast = average;
-    const trend = variation > 0 ? 'hausse' : (variation < 0 ? 'baisse' : 'stable');
-    const trendColor = variation > 0 ? 'trend-up' : (variation < 0 ? 'trend-down' : '');
-    const alertThreshold = 50000;
-    const isHigh = forecast > alertThreshold;
-    return { hasData: true, average, lastTotal, forecast, variation: Math.abs(variation).toFixed(1), trend, trendColor, isHigh, alertThreshold };
+    try {
+        if (evolutionData.length < 2) return { hasData: false, message: "Données insuffisantes pour une prévision (minimum 2 mois)" };
+        const lastMonths = [...evolutionData].slice(-3);
+        const total = lastMonths.reduce((sum, m) => sum + m.total, 0);
+        const average = total / lastMonths.length;
+        const lastMonth = lastMonths[lastMonths.length - 1];
+        const lastTotal = lastMonth.total;
+        const variation = ((average - lastTotal) / lastTotal) * 100;
+        const forecast = average;
+        const trend = variation > 0 ? 'hausse' : (variation < 0 ? 'baisse' : 'stable');
+        const trendColor = variation > 0 ? 'trend-up' : (variation < 0 ? 'trend-down' : '');
+        const alertThreshold = 50000;
+        const isHigh = forecast > alertThreshold;
+        return { hasData: true, average, lastTotal, forecast, variation: Math.abs(variation).toFixed(1), trend, trendColor, isHigh, alertThreshold };
+    } catch (error) {
+        console.error("Erreur calculateForecast:", error);
+        return { hasData: false, message: "Erreur de calcul" };
+    }
 }
+
 function updateForecast() {
-    const container = document.getElementById('forecastContent');
-    if (!container) return;
-    const forecast = calculateForecast();
-    if (!forecast.hasData) { container.innerHTML = `<div class="forecast-loading">${forecast.message}</div>`; return; }
-    container.innerHTML = `<div class="forecast-stats"><div class="forecast-item"><div class="label">Moyenne des 3 derniers mois</div><div class="value">${forecast.average.toFixed(0)} Ar</div></div><div class="forecast-item"><div class="label">Prévision mois prochain</div><div class="value">${forecast.forecast.toFixed(0)} Ar</div><small class="${forecast.trendColor}">${forecast.trend === 'hausse' ? '⬆️' : (forecast.trend === 'baisse' ? '⬇️' : '➡️')} ${forecast.variation}%</small></div><div class="forecast-item"><div class="label">Dernier mois</div><div class="value">${forecast.lastTotal.toFixed(0)} Ar</div></div></div>${forecast.isHigh ? `<div class="forecast-warning"><i class="fas fa-exclamation-triangle"></i> Attention : La prévision dépasse ${forecast.alertThreshold.toFixed(0)} Ar. Pensez à réduire votre consommation !</div>` : ''}`;
+    try {
+        const container = document.getElementById('forecastContent');
+        if (!container) return;
+        const forecast = calculateForecast();
+        if (!forecast.hasData) { container.innerHTML = `<div class="forecast-loading">${forecast.message}</div>`; return; }
+        container.innerHTML = `<div class="forecast-stats"><div class="forecast-item"><div class="label">Moyenne des 3 derniers mois</div><div class="value">${forecast.average.toFixed(0)} Ar</div></div><div class="forecast-item"><div class="label">Prévision mois prochain</div><div class="value">${forecast.forecast.toFixed(0)} Ar</div><small class="${forecast.trendColor}">${forecast.trend === 'hausse' ? '⬆️' : (forecast.trend === 'baisse' ? '⬇️' : '➡️')} ${forecast.variation}%</small></div><div class="forecast-item"><div class="label">Dernier mois</div><div class="value">${forecast.lastTotal.toFixed(0)} Ar</div></div></div>${forecast.isHigh ? `<div class="forecast-warning"><i class="fas fa-exclamation-triangle"></i> Attention : La prévision dépasse ${forecast.alertThreshold.toFixed(0)} Ar. Pensez à réduire votre consommation !</div>` : ''}`;
+    } catch (error) {
+        console.error("Erreur updateForecast:", error);
+    }
 }
 
 // ========================================
@@ -1205,69 +1616,110 @@ function updateForecast() {
 // ========================================
 
 function updateEmailList() {
-    const container = document.getElementById('emailList');
-    if (!container) return;
-    const emails = persons.filter(p => p.email).map(p => p.email);
-    if (emails.length === 0) container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucun email renseigné dans les profils</p>';
-    else container.innerHTML = emails.map(email => `<div style="background: rgba(0,212,255,0.1); padding: 5px 10px; border-radius: 8px; margin-bottom: 5px;"><i class="fas fa-envelope"></i> ${email}</div>`).join('');
-}
-function sendEmail(to, subject, body) { console.log(`Email envoyé à ${to}: ${subject}`); return true; }
-function sendInvoiceByEmail() {
-    if (!emailNotificationsEnabled) { showNotification('Les notifications email sont désactivées', 'info'); return; }
-    const charges = getTotalCharges();
-    const period = document.getElementById('period').value;
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const [year, month] = period.split('-');
-    const monthName = monthNames[parseInt(month) - 1];
-    const dueDate = new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('fr-FR');
-    let sentCount = 0;
-    charges.forEach(charge => {
-        const person = persons.find(p => p.id === charge.personId);
-        if (person && person.email) {
-            const subject = `Facture des charges - ${monthName} ${year}`;
-            const body = `Bonjour ${person.name},\n\nVoici le détail de votre facture pour la période ${monthName} ${year} :\n\nÉlectricité : ${charge.electricityCost.toFixed(0)} Ar\nEau : ${charge.waterCost.toFixed(0)} Ar\nTotal à payer : ${charge.totalCost.toFixed(0)} Ar\n\nMerci de régler avant le ${dueDate}\n\nCordialement,\nJIRAMA Charge Manager`;
-            sendEmail(person.email, subject, body);
-            sentCount++;
-        }
-    });
-    if (sentCount > 0) showNotification(`${sentCount} facture(s) envoyée(s) par email !`, 'success');
-    else showNotification('Aucun email valide trouvé dans les profils', 'warning');
-}
-function sendEmailTest() { const testEmail = prompt("Entrez une adresse email pour le test :"); if (testEmail && testEmail.includes('@')) { sendEmail(testEmail, "Test JIRAMA Charge Manager", "Ceci est un test de notification. Votre application fonctionne correctement !"); showNotification(`Email de test envoyé à ${testEmail}`, 'success'); } else { showNotification('Email invalide', 'error'); } }
-function initEmailJS() { if (typeof emailjs !== 'undefined') { emailjs.init("service_mkuw7cf"); console.log("✅ EmailJS initialisé avec succès"); } else { console.log("⏳ EmailJS non chargé, attente..."); setTimeout(initEmailJS, 1000); } }
-function checkPaymentReminders() {
-    if (!paymentRemindersEnabled) return;
-    const period = document.getElementById('period').value;
-    const [year, month] = period.split('-');
-    const currentDate = new Date();
-    const dueDate = new Date(year, month, 1);
-    dueDate.setMonth(dueDate.getMonth() + 1);
-    const daysUntilDue = Math.ceil((dueDate - currentDate) / (1000 * 60 * 60 * 24));
-    if (daysUntilDue <= reminderDays && daysUntilDue > 0) {
-        const charges = getTotalCharges();
-        const unpaid = charges.filter(c => { const statusSpan = document.getElementById(`status-${c.personId}`); return statusSpan && statusSpan.textContent === 'Non payé'; });
-        if (unpaid.length > 0) {
-            unpaid.forEach(charge => {
-                const person = persons.find(p => p.id === charge.personId);
-                if (person && person.email) {
-                    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-                    const subject = `Rappel de paiement - Facture ${monthNames[parseInt(month) - 1]} ${year}`;
-                    const body = `Bonjour ${person.name},\n\nCeci est un rappel : votre facture de ${charge.totalCost.toFixed(0)} Ar pour la période ${monthNames[parseInt(month) - 1]} ${year} arrive à échéance dans ${daysUntilDue} jour(s).\n\nMerci de régulariser votre paiement.\n\nCordialement,\nJIRAMA Charge Manager`;
-                    sendEmail(person.email, subject, body);
-                }
-            });
-            showNotification(`${unpaid.length} rappel(s) de paiement envoyé(s)`, 'info');
-        }
+    try {
+        const container = document.getElementById('emailList');
+        if (!container) return;
+        const emails = persons.filter(p => p.email).map(p => p.email);
+        if (emails.length === 0) container.innerHTML = '<p style="color: rgba(255,255,255,0.5);">Aucun email renseigné dans les profils</p>';
+        else container.innerHTML = emails.map(email => `<div style="background: rgba(0,212,255,0.1); padding: 5px 10px; border-radius: 8px; margin-bottom: 5px;"><i class="fas fa-envelope"></i> ${email}</div>`).join('');
+    } catch (error) {
+        console.error("Erreur updateEmailList:", error);
     }
 }
-setInterval(checkPaymentReminders, 24 * 60 * 60 * 1000);
+
+function sendEmail(to, subject, body) { 
+    console.log(`Email envoyé à ${to}: ${subject}`); 
+    return true; 
+}
+
+function sendInvoiceByEmail() {
+    try {
+        if (!emailNotificationsEnabled) { showNotification('Les notifications email sont désactivées', 'info'); return; }
+        const charges = getTotalCharges();
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const [year, month] = period.split('-');
+        const monthName = monthNames[parseInt(month) - 1];
+        const dueDate = new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('fr-FR');
+        let sentCount = 0;
+        charges.forEach(charge => {
+            const person = persons.find(p => p.id === charge.personId);
+            if (person && person.email) {
+                const subject = `Facture des charges - ${monthName} ${year}`;
+                const body = `Bonjour ${person.name},\n\nVoici le détail de votre facture pour la période ${monthName} ${year} :\n\nÉlectricité : ${charge.electricityCost.toFixed(0)} Ar\nEau : ${charge.waterCost.toFixed(0)} Ar\nTotal à payer : ${charge.totalCost.toFixed(0)} Ar\n\nMerci de régler avant le ${dueDate}\n\nCordialement,\nJIRAMA Charge Manager`;
+                sendEmail(person.email, subject, body);
+                sentCount++;
+            }
+        });
+        if (sentCount > 0) showNotification(`${sentCount} facture(s) envoyée(s) par email !`, 'success');
+        else showNotification('Aucun email valide trouvé dans les profils', 'warning');
+    } catch (error) {
+        console.error("Erreur sendInvoiceByEmail:", error);
+    }
+}
+
+function sendEmailTest() { 
+    const testEmail = prompt("Entrez une adresse email pour le test :"); 
+    if (testEmail && testEmail.includes('@')) { 
+        sendEmail(testEmail, "Test JIRAMA Charge Manager", "Ceci est un test de notification. Votre application fonctionne correctement !"); 
+        showNotification(`Email de test envoyé à ${testEmail}`, 'success'); 
+    } else { 
+        showNotification('Email invalide', 'error'); 
+    } 
+}
+
+function initEmailJS() { 
+    if (typeof emailjs !== 'undefined') { 
+        try {
+            emailjs.init("service_mkuw7cf"); 
+            console.log("✅ EmailJS initialisé avec succès"); 
+        } catch(e) { console.log("Erreur EmailJS:", e); }
+    } else { 
+        console.log("⏳ EmailJS non chargé, attente..."); 
+        setTimeout(initEmailJS, 1000); 
+    } 
+}
+
+function checkPaymentReminders() {
+    try {
+        if (!paymentRemindersEnabled) return;
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const [year, month] = period.split('-');
+        const currentDate = new Date();
+        const dueDate = new Date(year, month, 1);
+        dueDate.setMonth(dueDate.getMonth() + 1);
+        const daysUntilDue = Math.ceil((dueDate - currentDate) / (1000 * 60 * 60 * 24));
+        if (daysUntilDue <= reminderDays && daysUntilDue > 0) {
+            const charges = getTotalCharges();
+            const unpaid = charges.filter(c => { const statusSpan = document.getElementById(`status-${c.personId}`); return statusSpan && statusSpan.textContent === 'Non payé'; });
+            if (unpaid.length > 0) {
+                unpaid.forEach(charge => {
+                    const person = persons.find(p => p.id === charge.personId);
+                    if (person && person.email) {
+                        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+                        const subject = `Rappel de paiement - Facture ${monthNames[parseInt(month) - 1]} ${year}`;
+                        const body = `Bonjour ${person.name},\n\nCeci est un rappel : votre facture de ${charge.totalCost.toFixed(0)} Ar pour la période ${monthNames[parseInt(month) - 1]} ${year} arrive à échéance dans ${daysUntilDue} jour(s).\n\nMerci de régulariser votre paiement.\n\nCordialement,\nJIRAMA Charge Manager`;
+                        sendEmail(person.email, subject, body);
+                    }
+                });
+                showNotification(`${unpaid.length} rappel(s) de paiement envoyé(s)`, 'info');
+            }
+        }
+    } catch (error) {
+        console.error("Erreur checkPaymentReminders:", error);
+    }
+}
 
 // ========================================
 // CLOUD
 // ========================================
 
 function initGoogleAPI() {
-    if (typeof gapi === 'undefined') { console.log("⏳ Google API non chargé, attente..."); setTimeout(initGoogleAPI, 1000); return; }
+    if (typeof gapi === 'undefined') { 
+        console.log("⏳ Google API non chargé, attente..."); 
+        setTimeout(initGoogleAPI, 1000); 
+        return; 
+    }
     gapi.load('client', () => {
         gapi.client.init({ apiKey: 'AIzaSyBtD4STn8dJAbfvmeJxsZuU4R4cMUPsow8', discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] }).then(() => { console.log('✅ Google API initialisé'); gapiInitialized = true; }).catch((error) => { console.error('❌ Erreur init Google API:', error); });
     });
@@ -1275,10 +1727,12 @@ function initGoogleAPI() {
         tokenClient = google.accounts.oauth2.initTokenClient({ client_id: '108986838801937638933', scope: 'https://www.googleapis.com/auth/drive.file', callback: (tokenResponse) => { gapiAccessToken = tokenResponse.access_token; console.log('✅ Authentification Google Drive réussie'); showNotification('Connecté à Google Drive avec succès', 'success'); } });
     }
 }
+
 function signInToDrive() {
     if (tokenClient) { tokenClient.requestAccessToken(); }
     else { showNotification('Service Google non disponible, réessayez dans quelques secondes', 'info'); setTimeout(() => { if (tokenClient) tokenClient.requestAccessToken(); else showNotification('Impossible de se connecter à Google Drive', 'error'); }, 2000); }
 }
+
 function syncToCloud() {
     if (!gapiAccessToken) { showNotification('Veuillez vous connecter à Google Drive d\'abord', 'info'); signInToDrive(); return; }
     showNotification('Sauvegarde en cours...', 'info');
@@ -1295,6 +1749,7 @@ function syncToCloud() {
         else throw new Error(result.error?.message || 'Erreur lors de la sauvegarde');
     }).catch(error => { console.error('Erreur de sauvegarde:', error); showNotification('Erreur lors de la sauvegarde cloud', 'error'); });
 }
+
 function restoreFromCloud() {
     if (!gapiAccessToken) { showNotification('Veuillez vous connecter à Google Drive d\'abord', 'info'); signInToDrive(); return; }
     if (!confirm('⚠️ Cette action remplacera toutes vos données actuelles. Continuer ?')) return;
@@ -1349,103 +1804,116 @@ function restoreFromCloud() {
 // ========================================
 
 function exportData() {
-    if (persons.length === 0 && appliances.length === 0) { showNotification('Aucune donnée à exporter', 'error'); return; }
-    const data = { exportDate: new Date().toISOString(), version: '3.0', persons, appliances, commonExpenses, evolutionData, guests, virtualAccounts, settings: { elecBillAmount, waterBillAmount, elecConsumption, waterConsumption, elecMethod, waterMethod, elecTranchesEnabled, waterTranchesEnabled, electricityTranches, waterTranches }, history };
-    const dataStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `jirama_export_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showNotification('Données exportées avec succès !', 'success');
+    try {
+        if (persons.length === 0 && appliances.length === 0) { showNotification('Aucune donnée à exporter', 'error'); return; }
+        const data = { exportDate: new Date().toISOString(), version: '3.0', persons, appliances, commonExpenses, evolutionData, guests, virtualAccounts, settings: { elecBillAmount, waterBillAmount, elecConsumption, waterConsumption, elecMethod, waterMethod, elecTranchesEnabled, waterTranchesEnabled, electricityTranches, waterTranches }, history };
+        const dataStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `jirama_export_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('Données exportées avec succès !', 'success');
+    } catch (error) {
+        console.error("Erreur exportData:", error);
+    }
 }
+
 function importData() {
-    const fileInput = document.getElementById('importFile');
-    if (!fileInput) return;
-    fileInput.click();
-    fileInput.onchange = function(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                if (importedData.persons !== undefined && importedData.appliances !== undefined) {
-                    persons = importedData.persons || [];
-                    appliances = importedData.appliances || [];
-                    commonExpenses = importedData.commonExpenses || [];
-                    evolutionData = importedData.evolutionData || [];
-                    guests = importedData.guests || [];
-                    virtualAccounts = importedData.virtualAccounts || {};
-                    history = importedData.history || [];
-                    if (importedData.settings) {
-                        elecBillAmount = importedData.settings.elecBillAmount || 0;
-                        waterBillAmount = importedData.settings.waterBillAmount || 0;
-                        elecConsumption = importedData.settings.elecConsumption || 0;
-                        waterConsumption = importedData.settings.waterConsumption || 0;
-                        elecMethod = importedData.settings.elecMethod || 'basedOnBill';
-                        waterMethod = importedData.settings.waterMethod || 'equitable';
-                        elecTranchesEnabled = importedData.settings.elecTranchesEnabled || false;
-                        waterTranchesEnabled = importedData.settings.waterTranchesEnabled || false;
-                        electricityTranches = importedData.settings.electricityTranches || [];
-                        waterTranches = importedData.settings.waterTranches || [];
-                    }
-                    if (electricityTranches.length === 0) initDefaultTranches();
-                    if (waterTranches.length === 0) initDefaultTranches();
-                    saveData();
-                    updatePersonsList();
-                    updateAppliancesList();
-                    updateDashboard();
-                    updateBilling();
-                    updateHistory();
-                    updateExpensesList();
-                    updateEvolutionChart();
-                    updateWidgets();
-                    loadSettings();
-                    showNotification('Import réussi ! Toutes les données ont été restaurées.', 'success');
-                } else { showNotification('Fichier invalide : structure non reconnue', 'error'); }
-            } catch (error) { showNotification('Erreur lors de l\'import : fichier JSON invalide', 'error'); console.error(error); }
-            fileInput.value = '';
+    try {
+        const fileInput = document.getElementById('importFile');
+        if (!fileInput) return;
+        fileInput.click();
+        fileInput.onchange = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData.persons !== undefined && importedData.appliances !== undefined) {
+                        persons = importedData.persons || [];
+                        appliances = importedData.appliances || [];
+                        commonExpenses = importedData.commonExpenses || [];
+                        evolutionData = importedData.evolutionData || [];
+                        guests = importedData.guests || [];
+                        virtualAccounts = importedData.virtualAccounts || {};
+                        history = importedData.history || [];
+                        if (importedData.settings) {
+                            elecBillAmount = importedData.settings.elecBillAmount || 0;
+                            waterBillAmount = importedData.settings.waterBillAmount || 0;
+                            elecConsumption = importedData.settings.elecConsumption || 0;
+                            waterConsumption = importedData.settings.waterConsumption || 0;
+                            elecMethod = importedData.settings.elecMethod || 'basedOnBill';
+                            waterMethod = importedData.settings.waterMethod || 'equitable';
+                            elecTranchesEnabled = importedData.settings.elecTranchesEnabled || false;
+                            waterTranchesEnabled = importedData.settings.waterTranchesEnabled || false;
+                            electricityTranches = importedData.settings.electricityTranches || [];
+                            waterTranches = importedData.settings.waterTranches || [];
+                        }
+                        if (electricityTranches.length === 0) initDefaultTranches();
+                        if (waterTranches.length === 0) initDefaultTranches();
+                        saveData();
+                        updatePersonsList();
+                        updateAppliancesList();
+                        updateDashboard();
+                        updateBilling();
+                        updateHistory();
+                        updateExpensesList();
+                        updateEvolutionChart();
+                        updateWidgets();
+                        loadSettings();
+                        showNotification('Import réussi ! Toutes les données ont été restaurées.', 'success');
+                    } else { showNotification('Fichier invalide : structure non reconnue', 'error'); }
+                } catch (error) { showNotification('Erreur lors de l\'import : fichier JSON invalide', 'error'); console.error(error); }
+                fileInput.value = '';
+            };
+            reader.readAsText(file);
         };
-        reader.readAsText(file);
-    };
+    } catch (error) {
+        console.error("Erreur importData:", error);
+    }
 }
+
 function exportToExcel() {
-    if (persons.length === 0) { showNotification('Aucune donnée à exporter', 'error'); return; }
-    const charges = getTotalCharges();
-    const period = document.getElementById('period').value;
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const [year, month] = period.split('-');
-    const monthName = monthNames[parseInt(month) - 1];
-    const exportDate = new Date().toLocaleString('fr-FR');
-    const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    const totalElec = charges.reduce((sum, c) => sum + c.electricityCost, 0);
-    const totalWater = charges.reduce((sum, c) => sum + c.waterCost, 0);
-    const htmlContent = `<html><head><meta charset="UTF-8"><title>Rapport JIRAMA - ${monthName} ${year}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;margin:20px;background:white}.header{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:white;padding:20px;text-align:center;border-radius:10px;margin-bottom:20px}.header h1{margin:0;font-size:28px}.section-title{background:#00d4ff;color:#1e3c72;padding:10px 15px;margin:20px 0 10px;border-radius:8px;font-weight:bold;font-size:16px}table{width:100%;border-collapse:collapse;margin-bottom:20px;border-radius:8px;overflow:hidden}th{background:#1e3c72;color:white;padding:10px;text-align:left}td{padding:8px 10px;border-bottom:1px solid #e0e0e0}.total-row{background:#f1f5f9;font-weight:bold}.amount{text-align:right}.info-cards{display:flex;gap:15px;margin-bottom:20px;flex-wrap:wrap}.info-card{background:linear-gradient(135deg,#f8f9fa,#e9ecef);border-radius:10px;padding:15px;flex:1;min-width:150px;border-left:4px solid #00d4ff}.info-card .value{font-size:24px;font-weight:bold;color:#00d4ff}.footer{margin-top:30px;padding:15px;text-align:center;background:#f8f9fa;border-radius:8px;font-size:11px;color:#6c757d}</style></head><body><div class="header"><h1>⚡ JIRAMA Charge Manager</h1><p>Rapport des charges d'électricité et d'eau</p><p><strong>Période : ${monthName} ${year}</strong> | Exporté le ${exportDate}</p></div><div class="info-cards"><div class="info-card"><h4>💰 TOTAL DES CHARGES</h4><div class="value">${total.toFixed(0)} Ar</div></div><div class="info-card"><h4>⚡ ÉLECTRICITÉ</h4><div class="value">${elecBillAmount.toFixed(0)} Ar</div><small>${elecConsumption} kWh</small></div><div class="info-card"><h4>💧 EAU</h4><div class="value">${waterBillAmount.toFixed(0)} Ar</div><small>${waterConsumption} m³</small></div><div class="info-card"><h4>👥 COLOCATAIRES</h4><div class="value">${persons.length}</div><small>personnes</small></div></div><div class="section-title">📊 RÉPARTITION DES CHARGES PAR COLOCATAIRE</div><table><thead><tr><th>Colocataire</th><th>⚡ Électricité (Ar)</th><th>💧 Eau (Ar)</th><th>💰 Total (Ar)</th><th>📊 Part</th></tr></thead><tbody>${charges.map(charge => { const percent = total > 0 ? ((charge.totalCost / total) * 100).toFixed(1) : 0; return `<tr><td><strong>${escapeHtml(charge.personName)}</strong></td><td class="amount">${charge.electricityCost.toFixed(0)} Ar</td><td class="amount">${charge.waterCost.toFixed(0)} Ar</td><td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong></td><td class="amount">${percent}%</td></tr>`; }).join('')}<tr class="total-row"><td><strong>TOTAL GÉNÉRAL</strong></td><td class="amount"><strong>${totalElec.toFixed(0)} Ar</strong></td><td class="amount"><strong>${totalWater.toFixed(0)} Ar</strong></td><td class="amount"><strong>${total.toFixed(0)} Ar</strong></td><td class="amount"><strong>100%</strong></td></tr></tbody></table><div class="section-title">🔌 DÉTAIL DES APPAREILS ÉLECTRIQUES</div>${appliances.length > 0 ? `<table><thead><tr><th>Appareil</th><th>Catégorie</th><th>Puissance (W)</th><th>Utilisation</th><th>Consommation (kWh)</th><th>Coût (Ar)</th><th>Type</th></tr></thead><tbody>${appliances.map(app => { const cost = calculateElectricityCost(app.consumption).toFixed(0); return `<tr><td><strong>${escapeHtml(app.name)}</strong></td><td>${app.category}</td><td class="amount">${app.power} W</td><td>${app.hoursPerDay}h/j × ${app.daysPerMonth}j</td><td class="amount">${app.consumption.toFixed(2)} kWh</td><td class="amount">${cost} Ar</td><td>${app.type === 'individual' ? '👤 Individuel' : '👥 Partagé'}</td></tr>`; }).join('')}<tr class="total-row"><td colspan="4"><strong>TOTAL</strong></td><td class="amount"><strong>${appliances.reduce((s, a) => s + a.consumption, 0).toFixed(2)} kWh</strong></td><td class="amount"><strong>${appliances.reduce((s, a) => s + calculateElectricityCost(a.consumption), 0).toFixed(0)} Ar</strong></td><td></td></tr></tbody></table>` : '<p>Aucun appareil enregistré</p>'}<div class="section-title">🛒 DÉPENSES COMMUNES</div>${commonExpenses && commonExpenses.length > 0 ? `<table><thead><tr><th>Description</th><th>Montant (Ar)</th><th>Date</th></tr></thead><tbody>${commonExpenses.map(expense => `<tr><td>${escapeHtml(expense.description)}</td><td class="amount"><strong>${expense.amount.toFixed(0)} Ar</strong></td><td>${expense.date}</td></tr>`).join('')}<tr class="total-row"><td><strong>TOTAL DÉPENSES</strong></td><td class="amount"><strong>${commonExpenses.reduce((s, e) => s + e.amount, 0).toFixed(0)} Ar</strong></td><td></td></tr></tbody></table>` : '<p>Aucune dépense commune enregistrée</p>'}<div class="section-title">👥 LISTE DES COLOCATAIRES</div><table><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Présence</th></tr></thead><tbody>${persons.map(person => `<tr><td><strong>${escapeHtml(person.name)}</strong></td><td>${person.email || 'Non renseigné'}</td><td>${person.phone || 'Non renseigné'}</td><td>${person.coefficient * 100}%</td></tr>`).join('')}</tbody></table><div class="section-title">⚙️ PARAMÈTRES DE CALCUL</div><tr><td width="250"><strong>Méthode électricité</strong></td><td>${elecMethod === 'basedOnBill' ? 'Basé sur la facture totale' : 'Basé sur les appareils'}</td></tr><tr><td><strong>Méthode eau</strong></td><td>${waterMethod === 'equitable' ? 'Division équitable' : 'Basé sur consommation individuelle'}</td></tr><tr><td><strong>Tarifs électricité personnalisés</strong></td><td>${elecTranchesEnabled ? 'Activés ✅' : 'Désactivés ❌'}</td></tr><tr><td><strong>Tarifs eau personnalisés</strong></td><td>${waterTranchesEnabled ? 'Activés ✅' : 'Désactivés ❌'}</td></tr><div class="footer"><p>📄 Rapport généré automatiquement par JIRAMA Charge Manager v3.0</p><p>📞 Support: +261 34 30 000 30 | ✉️ support@jirama.mg | 🌐 www.jirama.mg</p></div></body></html>`;
-    const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.setAttribute("download", `rapport_JIRAMA_${monthName}_${year}.xls`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showNotification('Export Excel réussi !', 'success');
+    try {
+        if (persons.length === 0) { showNotification('Aucune donnée à exporter', 'error'); return; }
+        const charges = getTotalCharges();
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const [year, month] = period.split('-');
+        const monthName = monthNames[parseInt(month) - 1];
+        const exportDate = new Date().toLocaleString('fr-FR');
+        const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
+        const totalElec = charges.reduce((sum, c) => sum + c.electricityCost, 0);
+        const totalWater = charges.reduce((sum, c) => sum + c.waterCost, 0);
+        const htmlContent = `<html><head><meta charset="UTF-8"><title>Rapport JIRAMA - ${monthName} ${year}</title><style>body{font-family:'Segoe UI',Arial,sans-serif;margin:20px;background:white}.header{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:white;padding:20px;text-align:center;border-radius:10px;margin-bottom:20px}.header h1{margin:0;font-size:28px}.section-title{background:#00d4ff;color:#1e3c72;padding:10px 15px;margin:20px 0 10px;border-radius:8px;font-weight:bold;font-size:16px}table{width:100%;border-collapse:collapse;margin-bottom:20px;border-radius:8px;overflow:hidden}th{background:#1e3c72;color:white;padding:10px;text-align:left}td{padding:8px 10px;border-bottom:1px solid #e0e0e0}.total-row{background:#f1f5f9;font-weight:bold}.amount{text-align:right}.info-cards{display:flex;gap:15px;margin-bottom:20px;flex-wrap:wrap}.info-card{background:linear-gradient(135deg,#f8f9fa,#e9ecef);border-radius:10px;padding:15px;flex:1;min-width:150px;border-left:4px solid #00d4ff}.info-card .value{font-size:24px;font-weight:bold;color:#00d4ff}.footer{margin-top:30px;padding:15px;text-align:center;background:#f8f9fa;border-radius:8px;font-size:11px;color:#6c757d}</style></head><body><div class="header"><h1>⚡ JIRAMA Charge Manager</h1><p>Rapport des charges d'électricité et d'eau</p><p><strong>Période : ${monthName} ${year}</strong> | Exporté le ${exportDate}</p></div><div class="info-cards"><div class="info-card"><h4>💰 TOTAL DES CHARGES</h4><div class="value">${total.toFixed(0)} Ar</div></div><div class="info-card"><h4>⚡ ÉLECTRICITÉ</h4><div class="value">${elecBillAmount.toFixed(0)} Ar</div><small>${elecConsumption} kWh</small></div><div class="info-card"><h4>💧 EAU</h4><div class="value">${waterBillAmount.toFixed(0)} Ar</div><small>${waterConsumption} m³</small></div><div class="info-card"><h4>👥 COLOCATAIRES</h4><div class="value">${persons.length}</div><small>personnes</small></div></div><div class="section-title">📊 RÉPARTITION DES CHARGES PAR COLOCATAIRE</div><table><thead><tr><th>Colocataire</th><th>⚡ Électricité (Ar)</th><th>💧 Eau (Ar)</th><th>💰 Total (Ar)</th><th>📊 Part</th></tr></thead><tbody>${charges.map(charge => { const percent = total > 0 ? ((charge.totalCost / total) * 100).toFixed(1) : 0; return `<tr><td><strong>${escapeHtml(charge.personName)}</strong></td><td class="amount">${charge.electricityCost.toFixed(0)} Ar</td><td class="amount">${charge.waterCost.toFixed(0)} Ar</td><td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong></td><td class="amount">${percent}%</td>`; }).join('')}<tr class="total-row"><td><strong>TOTAL GÉNÉRAL</strong></td><td class="amount"><strong>${totalElec.toFixed(0)} Ar</strong></td><td class="amount"><strong>${totalWater.toFixed(0)} Ar</strong></td><td class="amount"><strong>${total.toFixed(0)} Ar</strong></td><td class="amount"><strong>100%</strong></td></tr></tbody></table><div class="section-title">🔌 DÉTAIL DES APPAREILS ÉLECTRIQUES</div>${appliances.length > 0 ? `<table><thead><tr><th>Appareil</th><th>Catégorie</th><th>Puissance (W)</th><th>Utilisation</th><th>Consommation (kWh)</th><th>Coût (Ar)</th><th>Type</th></tr></thead><tbody>${appliances.map(app => { const cost = calculateElectricityCost(app.consumption || 0).toFixed(0); return `<tr><td><strong>${escapeHtml(app.name)}</strong></td><td>${app.category}</td><td class="amount">${app.power} W</td><td>${app.hoursPerDay}h/j × ${app.daysPerMonth}j</td><td class="amount">${(app.consumption || 0).toFixed(2)} kWh</td><td class="amount">${cost} Ar</td><td>${app.type === 'individual' ? '👤 Individuel' : '👥 Partagé'}</td></tr>`; }).join('')}<tr class="total-row"><td colspan="4"><strong>TOTAL</strong></td><td class="amount"><strong>${appliances.reduce((s, a) => s + (a.consumption || 0), 0).toFixed(2)} kWh</strong></td><td class="amount"><strong>${appliances.reduce((s, a) => s + calculateElectricityCost(a.consumption || 0), 0).toFixed(0)} Ar</strong></td><td></td></tr></tbody></table>` : '<p>Aucun appareil enregistré</p>'}<div class="section-title">🛒 DÉPENSES COMMUNES</div>${commonExpenses && commonExpenses.length > 0 ? `<table><thead><tr><th>Description</th><th>Montant (Ar)</th><th>Date</th></tr></thead><tbody>${commonExpenses.map(expense => `<tr><td>${escapeHtml(expense.description)}</td><td class="amount"><strong>${expense.amount.toFixed(0)} Ar</strong></td><td>${expense.date}</td></tr>`).join('')}<tr class="total-row"><td><strong>TOTAL DÉPENSES</strong></td><td class="amount"><strong>${commonExpenses.reduce((s, e) => s + e.amount, 0).toFixed(0)} Ar</strong></td><td></td></tr></tbody></table>` : '<p>Aucune dépense commune enregistrée</p>'}<div class="section-title">👥 LISTE DES COLOCATAIRES</div><table><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th>Présence</th></tr></thead><tbody>${persons.map(person => `<tr><td><strong>${escapeHtml(person.name)}</strong></td><td>${person.email || 'Non renseigné'}</td><td>${person.phone || 'Non renseigné'}</td><td>${(person.coefficient || 1) * 100}%</td></tr>`).join('')}</tbody></table><div class="section-title">⚙️ PARAMÈTRES DE CALCUL</div><table><tr><td width="250"><strong>Méthode électricité</strong></td><td>${elecMethod === 'basedOnBill' ? 'Basé sur la facture totale' : 'Basé sur les appareils'}</td></tr><tr><td><strong>Méthode eau</strong></td><td>${waterMethod === 'equitable' ? 'Division équitable' : 'Basé sur consommation individuelle'}</td></tr><tr><td><strong>Tarifs électricité personnalisés</strong></td><td>${elecTranchesEnabled ? 'Activés ✅' : 'Désactivés ❌'}</td></tr><tr><td><strong>Tarifs eau personnalisés</strong></td><td>${waterTranchesEnabled ? 'Activés ✅' : 'Désactivés ❌'}</td></tr></table><div class="footer"><p>📄 Rapport généré automatiquement par JIRAMA Charge Manager v3.0</p><p>📞 Support: +261 34 30 000 30 | ✉️ support@jirama.mg | 🌐 www.jirama.mg</p></div></body></html>`;
+        const blob = new Blob([htmlContent], { type: "application/vnd.ms-excel" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.setAttribute("download", `rapport_JIRAMA_${monthName}_${year}.xls`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        showNotification('Export Excel réussi !', 'success');
+    } catch (error) {
+        console.error("Erreur exportToExcel:", error);
+        showNotification('Erreur lors de l\'export Excel', 'error');
+    }
 }
 
 // ========================================
 // SCAN
 // ========================================
 
-// Fonction corrigée
 function openScanModal() {
     try {
-        // Supprimer modal existante si présente
         if (document.getElementById('scanModal')) {
             document.getElementById('scanModal').remove();
         }
@@ -1454,7 +1922,7 @@ function openScanModal() {
         
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         scanModal = document.getElementById('scanModal');
-        scanModal.style.display = 'block';
+        if (scanModal) scanModal.style.display = 'block';
         
         const fileInput = document.getElementById('scanFile');
         if (fileInput) {
@@ -1474,6 +1942,7 @@ function closeScanModal() {
         if (scanModal) scanModal.remove();
         const modal = document.getElementById('scanModal');
         if (modal) modal.remove();
+        scanModal = null;
     } catch (error) {
         console.error("Erreur closeScanModal:", error);
     }
@@ -1501,7 +1970,6 @@ function processImage(file) {
 
 function simulateOCR() {
     try {
-        // Simulation de détection OCR (à remplacer par votre vraie logique)
         const detectedData = { 
             elecAmount: Math.floor(Math.random() * 100000) + 20000, 
             elecKwh: Math.floor(Math.random() * 200) + 50, 
@@ -1540,14 +2008,10 @@ function applyDetectedValues() {
             if (waterAmountInput) waterAmountInput.value = window.tempScannedData.waterAmount;
             if (waterConsInput) waterConsInput.value = window.tempScannedData.waterM3;
             
-            // Appel sécurisé à calculateActualPrices
             if (typeof calculateActualPrices === 'function') {
                 calculateActualPrices();
-            } else {
-                console.warn("calculateActualPrices non définie");
             }
             
-            // Appel sécurisé à showNotification
             if (typeof showNotification === 'function') {
                 showNotification('Valeurs appliquées avec succès !', 'success');
             } else {
@@ -1555,6 +2019,7 @@ function applyDetectedValues() {
             }
             
             closeScanModal();
+            window.tempScannedData = null;
         } else {
             alert("Aucune donnée scannée à appliquer");
         }
@@ -1563,23 +2028,33 @@ function applyDetectedValues() {
         alert("Erreur lors de l'application des valeurs");
     }
 }
+
 // ========================================
 // THÈME
 // ========================================
 
 function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    const themeSelector = document.getElementById('themeSelector');
-    if (themeSelector) {
-        themeSelector.value = savedTheme;
-        applyTheme(savedTheme);
-        themeSelector.addEventListener('change', (e) => { const theme = e.target.value; localStorage.setItem('theme', theme); applyTheme(theme); });
+    try {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        const themeSelector = document.getElementById('themeSelector');
+        if (themeSelector) {
+            themeSelector.value = savedTheme;
+            applyTheme(savedTheme);
+            themeSelector.addEventListener('change', (e) => { const theme = e.target.value; localStorage.setItem('theme', theme); applyTheme(theme); });
+        }
+    } catch (error) {
+        console.error("Erreur initTheme:", error);
     }
 }
+
 function applyTheme(theme) {
-    if (theme === 'light') { document.body.classList.add('light-mode'); document.body.classList.remove('dark-mode'); }
-    else if (theme === 'dark') { document.body.classList.add('dark-mode'); document.body.classList.remove('light-mode'); }
-    else { const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; if (prefersDark) { document.body.classList.add('dark-mode'); document.body.classList.remove('light-mode'); } else { document.body.classList.add('light-mode'); document.body.classList.remove('dark-mode'); } }
+    try {
+        if (theme === 'light') { document.body.classList.add('light-mode'); document.body.classList.remove('dark-mode'); }
+        else if (theme === 'dark') { document.body.classList.add('dark-mode'); document.body.classList.remove('light-mode'); }
+        else { const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; if (prefersDark) { document.body.classList.add('dark-mode'); document.body.classList.remove('light-mode'); } else { document.body.classList.add('light-mode'); document.body.classList.remove('dark-mode'); } }
+    } catch (error) {
+        console.error("Erreur applyTheme:", error);
+    }
 }
 
 // ========================================
@@ -1587,94 +2062,136 @@ function applyTheme(theme) {
 // ========================================
 
 function checkAuth() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) { currentUser = JSON.parse(savedUser); updateUIForUser(); }
-    else { showLoginModal(); }
+    try {
+        const savedUser = localStorage.getItem('currentUser');
+        if (savedUser) { currentUser = JSON.parse(savedUser); updateUIForUser(); }
+        else { showLoginModal(); }
+    } catch (error) {
+        console.error("Erreur checkAuth:", error);
+    }
 }
-function showLoginModal() { const modal = document.getElementById('loginModal'); if (modal) modal.style.display = 'block'; }
+
+function showLoginModal() { 
+    const modal = document.getElementById('loginModal'); 
+    if (modal) modal.style.display = 'block'; 
+}
+
 function login() {
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
-    
-    // Chercher par nom d'utilisateur ou par email
-    const user = users.find(u => u.username === username || u.email === username);
-    
-    if (user && user.password === password) {
-        currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        document.getElementById('loginModal').style.display = 'none';
-        updateUIForUser();
+    try {
+        const username = document.getElementById('loginUsername')?.value || '';
+        const password = document.getElementById('loginPassword')?.value || '';
         
-        // Filtrer les données pour l'utilisateur connecté
-        if (user.role !== 'admin' && user.personId) {
-            filterDataByPersonId(user.personId);
+        const user = users.find(u => u.username === username || u.email === username);
+        
+        if (user && user.password === password) {
+            currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(user));
+            const loginModal = document.getElementById('loginModal');
+            if (loginModal) loginModal.style.display = 'none';
+            updateUIForUser();
+            
+            if (user.role !== 'admin' && user.personId) {
+                filterDataByPersonId(user.personId);
+            }
+            
+            showNotification(`Bienvenue ${user.name} !`, 'success');
+        } else {
+            showNotification('Nom d\'utilisateur/email ou mot de passe incorrect', 'error');
         }
-        
-        showNotification(`Bienvenue ${user.name} !`, 'success');
-    } else {
-        showNotification('Nom d\'utilisateur/email ou mot de passe incorrect', 'error');
+    } catch (error) {
+        console.error("Erreur login:", error);
     }
 }
 
 function filterDataByPersonId(personId) {
-    // Ne montrer que la personne connectée
     persons = persons.filter(p => p.id === personId);
     updatePersonsList();
-    
-    // Ne montrer que les appareils assignés à cette personne
     appliances = appliances.filter(a => a.personId === personId || a.type === 'shared');
     updateAppliancesList();
-    
     updateDashboard();
     updateBilling();
 }
 
-function logout() { currentUser = null; localStorage.removeItem('currentUser'); showLoginModal(); showNotification('Déconnexion réussie', 'success'); }
+function logout() { 
+    currentUser = null; 
+    localStorage.removeItem('currentUser'); 
+    showLoginModal(); 
+    showNotification('Déconnexion réussie', 'success'); 
+}
+
 function updateUIForUser() {
-    if (!currentUser) return;
-    const headerStats = document.querySelector('.header-stats');
-    if (headerStats && !document.getElementById('userInfo')) {
-        const userInfo = document.createElement('div');
-        userInfo.id = 'userInfo';
-        userInfo.className = 'header-stat';
-        userInfo.innerHTML = `<i class="fas fa-user-circle"></i><div class="stat-info"><span class="stat-label">${currentUser.role === 'admin' ? 'Admin' : 'Utilisateur'}</span><span class="stat-value">${escapeHtml(currentUser.name)}</span></div><button onclick="logout()" style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px;"><i class="fas fa-sign-out-alt"></i></button>`;
-        headerStats.appendChild(userInfo);
-    }
-    if (currentUser.role !== 'admin') {
-        const adminOnlyElements = document.querySelectorAll('.admin-only');
-        adminOnlyElements.forEach(el => el.style.display = 'none');
-        filterDataForUser();
+    try {
+        if (!currentUser) return;
+        const headerStats = document.querySelector('.header-stats');
+        if (headerStats && !document.getElementById('userInfo')) {
+            const userInfo = document.createElement('div');
+            userInfo.id = 'userInfo';
+            userInfo.className = 'header-stat';
+            userInfo.innerHTML = `<i class="fas fa-user-circle"></i><div class="stat-info"><span class="stat-label">${currentUser.role === 'admin' ? 'Admin' : 'Utilisateur'}</span><span class="stat-value">${escapeHtml(currentUser.name)}</span></div><button onclick="logout()" style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px;"><i class="fas fa-sign-out-alt"></i></button>`;
+            headerStats.appendChild(userInfo);
+        }
+        if (currentUser.role !== 'admin') {
+            const adminOnlyElements = document.querySelectorAll('.admin-only');
+            adminOnlyElements.forEach(el => el.style.display = 'none');
+            filterDataForUser();
+        }
+    } catch (error) {
+        console.error("Erreur updateUIForUser:", error);
     }
 }
-function filterDataForUser() { if (currentUser.role === 'user') { const userPerson = persons.find(p => p.name === currentUser.name); if (userPerson) { persons = [userPerson]; } updatePersonsList(); } }
-function addUser(username, password, name, role = 'user') { if (currentUser?.role !== 'admin') { showNotification('Accès non autorisé', 'error'); return; } const newUser = { id: users.length + 1, username, password, role, name }; users.push(newUser); showNotification(`Utilisateur ${username} créé avec succès`, 'success'); }
+
+function filterDataForUser() { 
+    if (currentUser.role === 'user') { 
+        const userPerson = persons.find(p => p.name === currentUser.name); 
+        if (userPerson) { 
+            persons = [userPerson]; 
+        } 
+        updatePersonsList(); 
+    } 
+}
+
+function addUser(username, password, name, role = 'user') { 
+    if (currentUser?.role !== 'admin') { 
+        showNotification('Accès non autorisé', 'error'); 
+        return; 
+    } 
+    const newUser = { id: users.length + 1, username, password, role, name }; 
+    users.push(newUser); 
+    showNotification(`Utilisateur ${username} créé avec succès`, 'success'); 
+}
+
 // ========================================
 // GESTION DES COMPTES UTILISATEURS
 // ========================================
 
-// Afficher la liste des utilisateurs (dans les paramètres)
 function showUsersManagement() {
-    const modalHtml = `
-        <div id="usersModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3><i class="fas fa-users-cog"></i> Gestion des comptes</h3>
-                    <span class="close" onclick="closeUsersModal()">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <div id="usersList"></div>
-                    <button class="btn-glow" onclick="showAddUserForm()" style="width: 100%; margin-top: 15px;">
-                        <i class="fas fa-plus"></i> Ajouter un utilisateur
-                    </button>
+    try {
+        const modalHtml = `
+            <div id="usersModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-users-cog"></i> Gestion des comptes</h3>
+                        <span class="close" onclick="closeUsersModal()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div id="usersList"></div>
+                        <button class="btn-glow" onclick="showAddUserForm()" style="width: 100%; margin-top: 15px;">
+                            <i class="fas fa-plus"></i> Ajouter un utilisateur
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
-    
-    if (document.getElementById('usersModal')) document.getElementById('usersModal').remove();
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    updateUsersList();
-    document.getElementById('usersModal').style.display = 'block';
+        `;
+        
+        const existingModal = document.getElementById('usersModal');
+        if (existingModal) existingModal.remove();
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        updateUsersList();
+        const modal = document.getElementById('usersModal');
+        if (modal) modal.style.display = 'block';
+    } catch (error) {
+        console.error("Erreur showUsersManagement:", error);
+    }
 }
 
 function closeUsersModal() {
@@ -1683,110 +2200,158 @@ function closeUsersModal() {
 }
 
 function updateUsersList() {
-    const container = document.getElementById('usersList');
-    if (!container) return;
-    
-    container.innerHTML = `
-        <div style="max-height: 400px; overflow-y: auto;">
-            ${users.map(user => `
-                <div class="settings-card" style="margin-bottom: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <h4 style="color: #00d4ff;">${escapeHtml(user.name)}</h4>
-                        <span class="badge ${user.role === 'admin' ? 'badge-warning' : 'badge-info'}">${user.role === 'admin' ? 'Admin' : 'Utilisateur'}</span>
+    try {
+        const container = document.getElementById('usersList');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div style="max-height: 400px; overflow-y: auto;">
+                ${users.map(user => `
+                    <div class="settings-card" style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="color: #00d4ff;">${escapeHtml(user.name)}</h4>
+                            <span class="badge ${user.role === 'admin' ? 'badge-warning' : 'badge-info'}">${user.role === 'admin' ? 'Admin' : 'Utilisateur'}</span>
+                        </div>
+                        <p><i class="fas fa-user"></i> Nom d'utilisateur: <strong>${escapeHtml(user.username)}</strong></p>
+                        <p><i class="fas fa-envelope"></i> Email: ${escapeHtml(user.email || 'Non renseigné')}</p>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button class="btn-outline" onclick="resetUserPassword(${user.id})" style="flex: 1;">
+                                <i class="fas fa-key"></i> Réinitialiser mot de passe
+                            </button>
+                            ${user.role !== 'admin' ? `<button class="btn-icon delete" onclick="deleteUser(${user.id})" style="flex: 1;"><i class="fas fa-trash"></i> Supprimer</button>` : ''}
+                        </div>
                     </div>
-                    <p><i class="fas fa-user"></i> Nom d'utilisateur: <strong>${escapeHtml(user.username)}</strong></p>
-                    <p><i class="fas fa-envelope"></i> Email: ${escapeHtml(user.email || 'Non renseigné')}</p>
-                    <div style="margin-top: 10px; display: flex; gap: 10px;">
-                        <button class="btn-outline" onclick="resetUserPassword(${user.id})" style="flex: 1;">
-                            <i class="fas fa-key"></i> Réinitialiser mot de passe
-                        </button>
-                        ${user.role !== 'admin' ? `<button class="btn-icon delete" onclick="deleteUser(${user.id})" style="flex: 1;"><i class="fas fa-trash"></i> Supprimer</button>` : ''}
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
+                `).join('')}
+            </div>
+        `;
+    } catch (error) {
+        console.error("Erreur updateUsersList:", error);
+    }
 }
 
 function showAddUserForm() {
-    const name = prompt("Nom complet de l'utilisateur :");
-    if (!name) return;
-    const email = prompt("Email :");
-    if (!email) return;
-    const username = prompt("Nom d'utilisateur :", name.toLowerCase().replace(/\s/g, ''));
-    if (!username) return;
-    const password = prompt("Mot de passe :", "jirama123");
-    if (!password) return;
-    const role = confirm("Donner les droits d'administrateur ?") ? 'admin' : 'user';
-    
-    // Chercher si la personne existe déjà
-    let personId = null;
-    const existingPerson = persons.find(p => p.email === email);
-    if (existingPerson) {
-        personId = existingPerson.id;
-    } else {
-        // Créer une nouvelle personne
-        const newPerson = {
-            id: Date.now(),
+    try {
+        const name = prompt("Nom complet de l'utilisateur :");
+        if (!name) return;
+        const email = prompt("Email :");
+        if (!email) return;
+        const username = prompt("Nom d'utilisateur :", name.toLowerCase().replace(/\s/g, ''));
+        if (!username) return;
+        const password = prompt("Mot de passe :", "jirama123");
+        if (!password) return;
+        const role = confirm("Donner les droits d'administrateur ?") ? 'admin' : 'user';
+        
+        let personId = null;
+        const existingPerson = persons.find(p => p.email === email);
+        if (existingPerson) {
+            personId = existingPerson.id;
+        } else {
+            const newPerson = {
+                id: Date.now(),
+                name: name,
+                email: email,
+                phone: '',
+                coefficient: 1
+            };
+            persons.push(newPerson);
+            personId = newPerson.id;
+            updatePersonsList();
+            saveData();
+        }
+        
+        users.push({
+            id: users.length + 1,
+            username: username,
+            password: password,
+            role: role,
             name: name,
             email: email,
-            phone: '',
-            coefficient: 1
-        };
-        persons.push(newPerson);
-        personId = newPerson.id;
-        updatePersonsList();
+            personId: personId
+        });
+        
         saveData();
+        updateUsersList();
+        showNotification(`Utilisateur ${username} créé avec succès`, 'success');
+    } catch (error) {
+        console.error("Erreur showAddUserForm:", error);
     }
-    
-    users.push({
-        id: users.length + 1,
-        username: username,
-        password: password,
-        role: role,
-        name: name,
-        email: email,
-        personId: personId
-    });
-    
-    saveData();
-    updateUsersList();
-    showNotification(`Utilisateur ${username} créé avec succès`, 'success');
 }
 
 function resetUserPassword(userId) {
-    const user = users.find(u => u.id === userId);
-    if (user) {
-        const newPassword = prompt(`Nouveau mot de passe pour ${user.name} :`, "jirama123");
-        if (newPassword) {
-            user.password = newPassword;
-            saveData();
-            showNotification(`Mot de passe réinitialisé pour ${user.name}`, 'success');
+    try {
+        const user = users.find(u => u.id === userId);
+        if (user) {
+            const newPassword = prompt(`Nouveau mot de passe pour ${user.name} :`, "jirama123");
+            if (newPassword) {
+                user.password = newPassword;
+                saveData();
+                showNotification(`Mot de passe réinitialisé pour ${user.name}`, 'success');
+            }
         }
+    } catch (error) {
+        console.error("Erreur resetUserPassword:", error);
     }
 }
 
 function deleteUser(userId) {
-    const user = users.find(u => u.id === userId);
-    if (user && confirm(`Supprimer le compte de ${user.name} ?`)) {
-        users = users.filter(u => u.id !== userId);
-        saveData();
-        updateUsersList();
-        showNotification(`Utilisateur ${user.name} supprimé`, 'success');
+    try {
+        const user = users.find(u => u.id === userId);
+        if (user && confirm(`Supprimer le compte de ${user.name} ?`)) {
+            users = users.filter(u => u.id !== userId);
+            saveData();
+            updateUsersList();
+            showNotification(`Utilisateur ${user.name} supprimé`, 'success');
+        }
+    } catch (error) {
+        console.error("Erreur deleteUser:", error);
     }
 }
+
 // ========================================
 // LIENS FOOTER
 // ========================================
 
-function showGuide() { document.getElementById('guideModal').style.display = 'block'; }
-function closeGuideModal() { document.getElementById('guideModal').style.display = 'none'; }
-function showSupport() { document.getElementById('supportModal').style.display = 'block'; }
-function closeSupportModal() { document.getElementById('supportModal').style.display = 'none'; }
-function showFAQ() { const modal = document.getElementById('faqModal'); if (modal) modal.style.display = 'block'; else console.error("Modal FAQ non trouvé"); }
-function closeFAQModal() { document.getElementById('faqModal').style.display = 'none'; }
-function showTarifs() { document.getElementById('tarifsModal').style.display = 'block'; }
-function closeTarifsModal() { document.getElementById('tarifsModal').style.display = 'none'; }
+function showGuide() { 
+    const guideModal = document.getElementById('guideModal');
+    if (guideModal) guideModal.style.display = 'block'; 
+}
+
+function closeGuideModal() { 
+    const guideModal = document.getElementById('guideModal');
+    if (guideModal) guideModal.style.display = 'none'; 
+}
+
+function showSupport() { 
+    const supportModal = document.getElementById('supportModal');
+    if (supportModal) supportModal.style.display = 'block'; 
+}
+
+function closeSupportModal() { 
+    const supportModal = document.getElementById('supportModal');
+    if (supportModal) supportModal.style.display = 'none'; 
+}
+
+function showFAQ() { 
+    const modal = document.getElementById('faqModal'); 
+    if (modal) modal.style.display = 'block'; 
+    else console.error("Modal FAQ non trouvé"); 
+}
+
+function closeFAQModal() { 
+    const faqModal = document.getElementById('faqModal');
+    if (faqModal) faqModal.style.display = 'none'; 
+}
+
+function showTarifs() { 
+    const tarifsModal = document.getElementById('tarifsModal');
+    if (tarifsModal) tarifsModal.style.display = 'block'; 
+}
+
+function closeTarifsModal() { 
+    const tarifsModal = document.getElementById('tarifsModal');
+    if (tarifsModal) tarifsModal.style.display = 'none'; 
+}
+
 function showLegal() { showNotification('📜 Mentions légales : Application développée pour la gestion des charges JIRAMA.', 'info'); }
 function showPrivacy() { showNotification('🔒 Politique de confidentialité : Vos données sont stockées localement sur votre appareil.', 'info'); }
 function showTerms() { showNotification('📋 Conditions Générales d\'Utilisation : Application gratuite pour usage personnel.', 'info'); }
@@ -1799,7 +2364,6 @@ function showDocumentation() { showNotification('📚 La documentation technique
 function reportBug() { const bugReport = prompt("Décrivez le bug que vous avez rencontré :"); if (bugReport) { showNotification('Merci ! Votre rapport a été envoyé à notre équipe technique.', 'success'); console.log('Bug reporté:', bugReport); } }
 function suggestFeature() { const suggestion = prompt("Proposez une amélioration pour l'application :"); if (suggestion) { showNotification('Merci pour votre suggestion ! Elle sera étudiée par notre équipe.', 'success'); console.log('Suggestion:', suggestion); } }
 
-// Initialisation FAQ Accordéon - Version simplifiée (sans génération dynamique)
 function initFaqAccordion() {
     console.log("🚀 Initialisation FAQ...");
     
@@ -1814,7 +2378,6 @@ function initFaqAccordion() {
     faqItems.forEach((item) => {
         const question = item.querySelector('.faq-question');
         if (question) {
-            // Supprimer les anciens écouteurs pour éviter les doublons
             const newQuestion = question.cloneNode(true);
             question.parentNode.replaceChild(newQuestion, question);
             
@@ -1822,22 +2385,26 @@ function initFaqAccordion() {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Fermer tous les autres
                 document.querySelectorAll('.faq-item').forEach(other => {
                     if (other !== item && other.classList.contains('active')) {
                         other.classList.remove('active');
                     }
                 });
                 
-                // Basculer l'état de l'élément courant
                 item.classList.toggle('active');
                 console.log(`FAQ ${item.classList.contains('active') ? 'ouverte' : 'fermée'}`);
             });
         }
     });
 }
+
 function handleResponsiveCharts() {
-    window.addEventListener('resize', () => { if (elecChart) elecChart.resize(); if (appliancesChart) appliancesChart.resize(); if (budgetChart) budgetChart.resize(); if (evolutionChart) evolutionChart.resize(); });
+    window.addEventListener('resize', () => { 
+        if (elecChart) elecChart.resize(); 
+        if (appliancesChart) appliancesChart.resize(); 
+        if (budgetChart) budgetChart.resize(); 
+        if (evolutionChart) evolutionChart.resize(); 
+    });
 }
 
 function initOfflineMode() {
@@ -1850,7 +2417,6 @@ function initOfflineMode() {
 
 function showBudgetSimulator() {
     try {
-        // Vérifier que la variable persons existe
         if (typeof persons === 'undefined' || persons.length === 0) {
             if (typeof showNotification === 'function') {
                 showNotification('Ajoutez des colocataires pour utiliser le simulateur', 'error');
@@ -1860,7 +2426,6 @@ function showBudgetSimulator() {
             return;
         }
         
-        // Vérifier que getTotalCharges existe
         if (typeof getTotalCharges !== 'function') {
             console.error("getTotalCharges non définie");
             alert("Erreur: fonction getTotalCharges manquante");
@@ -1869,7 +2434,6 @@ function showBudgetSimulator() {
         
         const charges = getTotalCharges();
         
-        // Vérifier que charges est valide
         if (!charges || charges.length === 0) {
             alert("Aucune charge trouvée");
             return;
@@ -1887,7 +2451,6 @@ function showBudgetSimulator() {
         const [year, month] = period.split('-');
         const monthName = monthNames[parseInt(month) - 1];
         
-        // Fonction escapeHtml sécurisée
         const safeEscapeHtml = (str) => {
             if (!str) return '';
             return str.replace(/[&<>]/g, function(m) {
@@ -1934,7 +2497,6 @@ function showBudgetSimulator() {
             return;
         }
         
-        // Afficher le graphique après un court délai
         setTimeout(() => {
             try {
                 const ctx = document.getElementById('budgetChart');
@@ -1981,7 +2543,6 @@ function closeBudgetModal() {
         const modal = document.getElementById('budgetModal');
         if (modal) modal.style.display = 'none';
         
-        // Nettoyer le graphique
         if (budgetChart) {
             budgetChart.destroy();
             budgetChart = null;
@@ -1992,44 +2553,84 @@ function closeBudgetModal() {
 }
 
 function generateInvoice() {
-    if (persons.length === 0) { showNotification('Ajoutez des colocataires avant de générer une facture', 'error'); return; }
-    const charges = getTotalCharges();
-    const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    const period = document.getElementById('period').value;
-    const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const [year, month] = period.split('-');
-    const monthName = monthNames[parseInt(month) - 1];
-    const chargesWithPercent = charges.map(c => ({ ...c, percent: total > 0 ? (c.totalCost / total) * 100 : 0 }));
-    const invoiceHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture JIRAMA - ${monthName} ${year}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter','Segoe UI',Arial,sans-serif;background:#f5f7fa;padding:30px}.invoice-container{max-width:1000px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 10px 35px rgba(0,0,0,0.1);overflow:hidden}.invoice-header{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);padding:30px;color:#fff;text-align:center}.invoice-title h1{font-size:28px;font-weight:700;margin:0 0 8px}.invoice-title p{font-size:14px;opacity:0.9;margin:0}.invoice-period{background:rgba(255,255,255,0.2);display:inline-block;padding:6px 16px;border-radius:30px;font-size:13px;margin-top:15px}.info-section{display:flex;gap:20px;padding:25px 30px;background:#f8fafc;border-bottom:1px solid #e2e8f0}.info-card{flex:1;background:#fff;padding:18px 20px;border-radius:12px;border:1px solid #e9ecef}.info-card h3{color:#1e3c72;font-size:13px;text-transform:uppercase;margin-bottom:12px}.info-card p{margin:8px 0;color:#2c3e50;display:flex;justify-content:space-between;font-size:14px}.total-amount{font-size:22px;font-weight:700;color:#10b981;text-align:right}.table-section{padding:25px 30px}.table-section h3{color:#1e3c72;margin-bottom:15px;font-size:16px}.invoice-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e9ecef}.invoice-table th{background:#1e3c72;color:#fff;padding:12px 15px;text-align:left;font-weight:600;font-size:13px}.invoice-table td{padding:12px 15px;border-bottom:1px solid #e9ecef;color:#2c3e50;font-size:13px}.total-row{background:#f1f5f9;font-weight:700}.amount{text-align:right}.progress-section{padding:0 30px 25px}.progress-section h3{color:#1e3c72;margin-bottom:15px;font-size:16px}.progress-item{margin-bottom:12px}.progress-label{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px;color:#475569}.progress-bar-bg{background:#e2e8f0;border-radius:20px;height:8px;overflow:hidden}.progress-bar-fill{background:linear-gradient(90deg,#00d4ff,#0099cc);height:100%;border-radius:20px}.invoice-footer{background:#1e293b;padding:20px 30px;color:#94a3b8;text-align:center;font-size:11px}.footer-links{margin-top:10px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap}@media(max-width:640px){body{padding:15px}.info-section{flex-direction:column;padding:20px}.table-section{padding:20px;overflow-x:auto}.invoice-table{min-width:500px}}</style><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"></head><body><div class="invoice-container"><div class="invoice-header"><div class="invoice-title"><h1>JIRAMA Charge Manager</h1><p>Facture des charges d'électricité et d'eau</p><div class="invoice-period"><i class="fas fa-calendar-alt"></i> Période : ${monthName} ${year}</div></div></div><div class="info-section"><div class="info-card"><h3><i class="fas fa-charging-station"></i> Détails JIRAMA</h3><p><strong>Électricité :</strong> <span>${elecBillAmount.toFixed(0)} Ar</span></p><p><strong>Eau :</strong> <span>${waterBillAmount.toFixed(0)} Ar</span></p><p><strong>Total factures :</strong> <span class="total-amount">${(elecBillAmount + waterBillAmount).toFixed(0)} Ar</span></p></div><div class="info-card"><h3><i class="fas fa-info-circle"></i> Informations</h3><p><strong>Date d'émission :</strong> <span>${date}</span></p><p><strong>Nombre de colocataires :</strong> <span>${persons.length}</span></p><p><strong>Total des charges :</strong> <span class="total-amount">${total.toFixed(0)} Ar</span></p><p><strong>Date d'échéance :</strong> <span>${new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('fr-FR')}</span></p></div></div><div class="table-section"><h3><i class="fas fa-users"></i> Répartition des charges par colocataire</h3><table class="invoice-table"><thead><tr><th>Colocataire</th><th>Électricité (Ar)</th><th>Eau (Ar)</th><th>Total (Ar)</th><th>Part</th></tr></thead><tbody>${chargesWithPercent.map(charge => `<tr><td><strong>${escapeHtml(charge.personName)}</strong></td><td class="amount">${charge.electricityCost.toFixed(0)} Ar</td><td class="amount">${charge.waterCost.toFixed(0)} Ar</td><td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong></td><td class="amount">${charge.percent.toFixed(1)}%</td></tr>`).join('')}<tr class="total-row"><td><strong>TOTAL</strong></td><td class="amount"><strong>${charges.reduce((sum,c)=>sum+c.electricityCost,0).toFixed(0)} Ar</strong></td><td class="amount"><strong>${charges.reduce((sum,c)=>sum+c.waterCost,0).toFixed(0)} Ar</strong></td><td class="amount"><strong>${total.toFixed(0)} Ar</strong></td><td class="amount"><strong>100%</strong></td></tr></tbody></table></div><div class="progress-section"><h3><i class="fas fa-chart-pie"></i> Répartition visuelle des charges</h3>${chargesWithPercent.map(charge => `<div class="progress-item"><div class="progress-label"><span>${escapeHtml(charge.personName)}</span><span>${charge.totalCost.toFixed(0)} Ar (${charge.percent.toFixed(1)}%)</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${charge.percent}%"></div></div></div>`).join('')}</div><div class="invoice-footer"><p>Facture générée automatiquement par JIRAMA Charge Manager</p><div class="footer-links"><span><i class="fas fa-phone"></i> +261 34 30 000 30</span><span><i class="fas fa-envelope"></i> support@jirama.mg</span><span><i class="fas fa-globe"></i> www.jirama.mg</span></div><p style="margin-top:12px;font-size:10px;">Merci de régler votre part avant la date d'échéance</p></div></div></body></html>`;
-    const element = document.createElement('div');
-    element.innerHTML = invoiceHTML;
-    html2pdf().from(element).set({ margin: 0.3, filename: `facture_JIRAMA_${monthName}_${year}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, letterRendering: true }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress: true } }).save();
-    history.unshift({ date: new Date().toISOString(), period, type: 'facture', total });
-    saveData();
-    updateHistory();
-    saveMonthlyData();
-    showNotification('Facture générée avec succès !', 'success');
+    try {
+        if (persons.length === 0) { showNotification('Ajoutez des colocataires avant de générer une facture', 'error'); return; }
+        const charges = getTotalCharges();
+        const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const [year, month] = period.split('-');
+        const monthName = monthNames[parseInt(month) - 1];
+        const chargesWithPercent = charges.map(c => ({ ...c, percent: total > 0 ? (c.totalCost / total) * 100 : 0 }));
+        const invoiceHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture JIRAMA - ${monthName} ${year}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter','Segoe UI',Arial,sans-serif;background:#f5f7fa;padding:30px}.invoice-container{max-width:1000px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 10px 35px rgba(0,0,0,0.1);overflow:hidden}.invoice-header{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);padding:30px;color:#fff;text-align:center}.invoice-title h1{font-size:28px;font-weight:700;margin:0 0 8px}.invoice-title p{font-size:14px;opacity:0.9;margin:0}.invoice-period{background:rgba(255,255,255,0.2);display:inline-block;padding:6px 16px;border-radius:30px;font-size:13px;margin-top:15px}.info-section{display:flex;gap:20px;padding:25px 30px;background:#f8fafc;border-bottom:1px solid #e2e8f0}.info-card{flex:1;background:#fff;padding:18px 20px;border-radius:12px;border:1px solid #e9ecef}.info-card h3{color:#1e3c72;font-size:13px;text-transform:uppercase;margin-bottom:12px}.info-card p{margin:8px 0;color:#2c3e50;display:flex;justify-content:space-between;font-size:14px}.total-amount{font-size:22px;font-weight:700;color:#10b981;text-align:right}.table-section{padding:25px 30px}.table-section h3{color:#1e3c72;margin-bottom:15px;font-size:16px}.invoice-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e9ecef}.invoice-table th{background:#1e3c72;color:#fff;padding:12px 15px;text-align:left;font-weight:600;font-size:13px}.invoice-table td{padding:12px 15px;border-bottom:1px solid #e9ecef;color:#2c3e50;font-size:13px}.total-row{background:#f1f5f9;font-weight:700}.amount{text-align:right}.progress-section{padding:0 30px 25px}.progress-section h3{color:#1e3c72;margin-bottom:15px;font-size:16px}.progress-item{margin-bottom:12px}.progress-label{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px;color:#475569}.progress-bar-bg{background:#e2e8f0;border-radius:20px;height:8px;overflow:hidden}.progress-bar-fill{background:linear-gradient(90deg,#00d4ff,#0099cc);height:100%;border-radius:20px}.invoice-footer{background:#1e293b;padding:20px 30px;color:#94a3b8;text-align:center;font-size:11px}.footer-links{margin-top:10px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap}@media(max-width:640px){body{padding:15px}.info-section{flex-direction:column;padding:20px}.table-section{padding:20px;overflow-x:auto}.invoice-table{min-width:500px}}</style><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"></head><body><div class="invoice-container"><div class="invoice-header"><div class="invoice-title"><h1>JIRAMA Charge Manager</h1><p>Facture des charges d'électricité et d'eau</p><div class="invoice-period"><i class="fas fa-calendar-alt"></i> Période : ${monthName} ${year}</div></div></div><div class="info-section"><div class="info-card"><h3><i class="fas fa-charging-station"></i> Détails JIRAMA</h3><p><strong>Électricité :</strong> <span>${elecBillAmount.toFixed(0)} Ar</span></p><p><strong>Eau :</strong> <span>${waterBillAmount.toFixed(0)} Ar</span></p><p><strong>Total factures :</strong> <span class="total-amount">${(elecBillAmount + waterBillAmount).toFixed(0)} Ar</span></p></div><div class="info-card"><h3><i class="fas fa-info-circle"></i> Informations</h3><p><strong>Date d'émission :</strong> <span>${date}</span></p><p><strong>Nombre de colocataires :</strong> <span>${persons.length}</span></p><p><strong>Total des charges :</strong> <span class="total-amount">${total.toFixed(0)} Ar</span></p><p><strong>Date d'échéance :</strong> <span>${new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('fr-FR')}</span></p></div></div><div class="table-section"><h3><i class="fas fa-users"></i> Répartition des charges par colocataire</h3><table class="invoice-table"><thead><tr><th>Colocataire</th><th>Électricité (Ar)</th><th>Eau (Ar)</th><th>Total (Ar)</th><th>Part</th></tr></thead><tbody>${chargesWithPercent.map(charge => `<tr><td><strong>${escapeHtml(charge.personName)}</strong></td><td class="amount">${charge.electricityCost.toFixed(0)} Ar</td><td class="amount">${charge.waterCost.toFixed(0)} Ar</td><td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong></td><td class="amount">${charge.percent.toFixed(1)}%</td></tr>`).join('')}<tr class="total-row"><td><strong>TOTAL</strong></td><td class="amount"><strong>${charges.reduce((sum,c)=>sum+c.electricityCost,0).toFixed(0)} Ar</strong></td><td class="amount"><strong>${charges.reduce((sum,c)=>sum+c.waterCost,0).toFixed(0)} Ar</strong></td><td class="amount"><strong>${total.toFixed(0)} Ar</strong></td><td class="amount"><strong>100%</strong></td></tr></tbody></table></div><div class="progress-section"><h3><i class="fas fa-chart-pie"></i> Répartition visuelle des charges</h3>${chargesWithPercent.map(charge => `<div class="progress-item"><div class="progress-label"><span>${escapeHtml(charge.personName)}</span><span>${charge.totalCost.toFixed(0)} Ar (${charge.percent.toFixed(1)}%)</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${charge.percent}%"></div></div></div>`).join('')}</div><div class="invoice-footer"><p>Facture générée automatiquement par JIRAMA Charge Manager</p><div class="footer-links"><span><i class="fas fa-phone"></i> +261 34 30 000 30</span><span><i class="fas fa-envelope"></i> support@jirama.mg</span><span><i class="fas fa-globe"></i> www.jirama.mg</span></div><p style="margin-top:12px;font-size:10px;">Merci de régler votre part avant la date d'échéance</p></div></div></body></html>`;
+        const element = document.createElement('div');
+        element.innerHTML = invoiceHTML;
+        if (typeof html2pdf !== 'undefined') {
+            html2pdf().from(element).set({ margin: 0.3, filename: `facture_JIRAMA_${monthName}_${year}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, letterRendering: true }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress: true } }).save();
+        } else {
+            const win = window.open();
+            win.document.write(invoiceHTML);
+            win.document.close();
+        }
+        history.unshift({ date: new Date().toISOString(), period, type: 'facture', total });
+        saveData();
+        updateHistory();
+        saveMonthlyData();
+        showNotification('Facture générée avec succès !', 'success');
+    } catch (error) {
+        console.error("Erreur generateInvoice:", error);
+        showNotification('Erreur lors de la génération de la facture', 'error');
+    }
 }
 
 function setupEventListeners() {
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
-    document.getElementById('period')?.addEventListener('change', (e) => { currentPeriod = e.target.value; updateDashboard(); updateBilling(); updateHeaderStats(); showNotification('Période changée avec succès', 'success'); });
-    document.getElementById('personForm')?.addEventListener('submit', (e) => { e.preventDefault(); savePerson(); });
-    document.getElementById('personCoefficientSlider')?.addEventListener('input', (e) => { document.getElementById('coefficientValue').textContent = Math.round(e.target.value * 100) + '%'; });
-    document.getElementById('applianceForm')?.addEventListener('submit', (e) => { e.preventDefault(); saveAppliance(); });
-    document.getElementById('applianceType')?.addEventListener('change', (e) => { document.getElementById('personSelectGroup').style.display = e.target.value === 'individual' ? 'block' : 'none'; });
-    document.getElementById('elecMethod')?.addEventListener('change', (e) => { elecMethod = e.target.value; updateBilling(); updateDashboard(); });
-    document.getElementById('waterMethod')?.addEventListener('change', (e) => { waterMethod = e.target.value; updateBilling(); updateDashboard(); });
-    document.getElementById('elecBillAmount')?.addEventListener('input', calculateActualPrices);
-    document.getElementById('elecConsumption')?.addEventListener('input', calculateActualPrices);
-    document.getElementById('waterBillAmount')?.addEventListener('input', calculateActualPrices);
-    document.getElementById('waterConsumption')?.addEventListener('input', calculateActualPrices);
-    document.getElementById('elecTranchesEnabled')?.addEventListener('change', () => renderElecTranches());
-    document.getElementById('waterTranchesEnabled')?.addEventListener('change', () => renderWaterTranches());
+    try {
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+        const periodSelect = document.getElementById('period');
+        if (periodSelect) {
+            periodSelect.addEventListener('change', (e) => { currentPeriod = e.target.value; updateDashboard(); updateBilling(); updateHeaderStats(); showNotification('Période changée avec succès', 'success'); });
+        }
+        const personForm = document.getElementById('personForm');
+        if (personForm) personForm.addEventListener('submit', (e) => { e.preventDefault(); savePerson(); });
+        const coeffSlider = document.getElementById('personCoefficientSlider');
+        if (coeffSlider) coeffSlider.addEventListener('input', (e) => { const coeffValue = document.getElementById('coefficientValue'); if (coeffValue) coeffValue.textContent = Math.round(e.target.value * 100) + '%'; });
+        const applianceForm = document.getElementById('applianceForm');
+        if (applianceForm) applianceForm.addEventListener('submit', (e) => { e.preventDefault(); saveAppliance(); });
+        const applianceType = document.getElementById('applianceType');
+        if (applianceType) applianceType.addEventListener('change', (e) => { const personSelectGroup = document.getElementById('personSelectGroup'); if (personSelectGroup) personSelectGroup.style.display = e.target.value === 'individual' ? 'block' : 'none'; });
+        const elecMethodSelect = document.getElementById('elecMethod');
+        if (elecMethodSelect) elecMethodSelect.addEventListener('change', (e) => { elecMethod = e.target.value; updateBilling(); updateDashboard(); });
+        const waterMethodSelect = document.getElementById('waterMethod');
+        if (waterMethodSelect) waterMethodSelect.addEventListener('change', (e) => { waterMethod = e.target.value; updateBilling(); updateDashboard(); });
+        
+        const inputs = ['elecBillAmount', 'elecConsumption', 'waterBillAmount', 'waterConsumption'];
+        inputs.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) input.addEventListener('input', calculateActualPrices);
+        });
+        
+        const elecTranchesEnabledSelect = document.getElementById('elecTranchesEnabled');
+        if (elecTranchesEnabledSelect) elecTranchesEnabledSelect.addEventListener('change', () => renderElecTranches());
+        const waterTranchesEnabledSelect = document.getElementById('waterTranchesEnabled');
+        if (waterTranchesEnabledSelect) waterTranchesEnabledSelect.addEventListener('change', () => renderWaterTranches());
+    } catch (error) {
+        console.error("Erreur setupEventListeners:", error);
+    }
 }
 
-function sendQuickMessage(event) { event.preventDefault(); const name = event.target.querySelector('input[type="text"]')?.value; const email = event.target.querySelector('input[type="email"]')?.value; const message = event.target.querySelector('textarea')?.value; if (name && email && message) { showNotification(`Merci ${name} ! Votre message a été envoyé.`, 'success'); event.target.reset(); } else { showNotification('Veuillez remplir tous les champs', 'error'); } }
+function sendQuickMessage(event) { 
+    event.preventDefault(); 
+    const name = event.target.querySelector('input[type="text"]')?.value; 
+    const email = event.target.querySelector('input[type="email"]')?.value; 
+    const message = event.target.querySelector('textarea')?.value; 
+    if (name && email && message) { 
+        showNotification(`Merci ${name} ! Votre message a été envoyé.`, 'success'); 
+        event.target.reset(); 
+    } else { 
+        showNotification('Veuillez remplir tous les champs', 'error'); 
+    } 
+}
 
 // Exposer les fonctions globales
 window.switchTab = switchTab;
@@ -2088,6 +2689,12 @@ window.addWaterTranche = addWaterTranche;
 window.removeWaterTranche = removeWaterTranche;
 window.sendQuickMessage = sendQuickMessage;
 window.showDayDetails = showDayDetails;
+window.closeScanModal = closeScanModal;
+window.applyDetectedValues = applyDetectedValues;
+window.showUsersManagement = showUsersManagement;
+window.closeUsersModal = closeUsersModal;
+window.resetUserPassword = resetUserPassword;
+window.deleteUser = deleteUser;
 
 // Initialisation principale
 document.addEventListener('DOMContentLoaded', () => {
@@ -2151,7 +2758,6 @@ function updateConnectionStatus() {
         statusDiv.className = 'connection-status online';
         statusDiv.innerHTML = '<i class="fas fa-wifi"></i> Connecté - Données synchronisées';
         
-        // Cacher après 3 secondes
         setTimeout(() => {
             if (statusDiv.className === 'connection-status online') {
                 statusDiv.style.opacity = '0';
@@ -2172,65 +2778,57 @@ function updateConnectionStatus() {
     }
 }
 
-// Écouter les changements de connexion
 window.addEventListener('online', updateConnectionStatus);
 window.addEventListener('offline', updateConnectionStatus);
-
-// Vérifier l'état initial
 updateConnectionStatus();
 
 // ========================================
 // GESTION DU WORKER
 // ========================================
-// Initialiser le worker
+
 function initWorker() {
-    if (window.Worker) {
-        calculationWorker = new Worker('worker.js');
-        console.log('✅ Worker initialisé');
-        
-        // Écouter les résultats du worker
-        calculationWorker.addEventListener('message', function(e) {
-            const result = e.data;
+    try {
+        if (window.Worker) {
+            calculationWorker = new Worker('worker.js');
+            console.log('✅ Worker initialisé');
             
-            switch(result.type) {
-                case 'chargesResult':
-                    console.log('✅ Charges calculées par le worker');
-                    updateBillingWithWorkerResult(result.data);
-                    break;
-                    
-                case 'forecastResult':
-                    console.log('✅ Prévisions calculées par le worker');
-                    updateForecastWithWorkerResult(result.data);
-                    break;
-                    
-                case 'reportResult':
-                    console.log('✅ Rapport généré par le worker');
-                    displayWorkerReport(result.data);
-                    break;
-                    
-                case 'trendsResult':
-                    console.log('✅ Tendances calculées par le worker');
-                    updateTrendsDisplay(result.data);
-                    break;
-            }
-        });
-        
-        // Écouter les erreurs
-        calculationWorker.addEventListener('error', function(e) {
-            console.error('❌ Erreur worker:', e);
-            showNotification('Erreur de calcul, veuillez réessayer', 'error');
-        });
-        
-    } else {
-        console.warn('⚠️ Les Web Workers ne sont pas supportés par ce navigateur');
+            calculationWorker.addEventListener('message', function(e) {
+                const result = e.data;
+                switch(result.type) {
+                    case 'chargesResult':
+                        console.log('✅ Charges calculées par le worker');
+                        updateBillingWithWorkerResult(result.data);
+                        break;
+                    case 'forecastResult':
+                        console.log('✅ Prévisions calculées par le worker');
+                        updateForecastWithWorkerResult(result.data);
+                        break;
+                    case 'reportResult':
+                        console.log('✅ Rapport généré par le worker');
+                        displayWorkerReport(result.data);
+                        break;
+                    case 'trendsResult':
+                        console.log('✅ Tendances calculées par le worker');
+                        updateTrendsDisplay(result.data);
+                        break;
+                }
+            });
+            
+            calculationWorker.addEventListener('error', function(e) {
+                console.error('❌ Erreur worker:', e);
+                showNotification('Erreur de calcul, veuillez réessayer', 'error');
+            });
+        } else {
+            console.warn('⚠️ Les Web Workers ne sont pas supportés par ce navigateur');
+        }
+    } catch (error) {
+        console.error("Erreur initWorker:", error);
     }
 }
 
-// Utiliser le worker pour calculer les charges
 function calculateChargesWithWorker() {
     if (calculationWorker) {
         showLoadingSpinner();
-        
         calculationWorker.postMessage({
             type: 'calculateCharges',
             persons: persons,
@@ -2238,7 +2836,6 @@ function calculateChargesWithWorker() {
             pricePerKwh: actualPricePerKwh || 550
         });
     } else {
-        // Fallback si worker non disponible
         const charges = calculateElectricityCharges();
         updateBillingWithWorkerResult(charges);
     }
@@ -2246,8 +2843,6 @@ function calculateChargesWithWorker() {
 
 function updateBillingWithWorkerResult(charges) {
     hideLoadingSpinner();
-    
-    // Mettre à jour l'interface avec les résultats
     const container = document.getElementById('billingDetails');
     if (container) {
         const total = charges.reduce((sum, c) => sum + c.total, 0);
@@ -2299,7 +2894,18 @@ function hideLoadingSpinner() {
     if (spinner) spinner.style.display = 'none';
 }
 
-// Initialiser le worker au chargement
+function updateForecastWithWorkerResult(data) {
+    console.log("Mise à jour des prévisions:", data);
+}
+
+function displayWorkerReport(data) {
+    console.log("Affichage du rapport:", data);
+}
+
+function updateTrendsDisplay(data) {
+    console.log("Mise à jour des tendances:", data);
+}
+
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initWorker);
 } else {
@@ -2307,58 +2913,27 @@ if (document.readyState === 'loading') {
 }
 
 // ========================================
-// LAZY LOADING - Chargement à la demande
+// LAZY LOADING
 // ========================================
 
-// Définition des modules à charger dynamiquement
 const lazyModules = {
-    // Module de budget
-    budget: {
-        loaded: false,
-        load: () => import('./modules/budget.js')
-    },
-    // Module d'export Excel
-    excel: {
-        loaded: false,
-        load: () => import('./modules/excelExport.js')
-    },
-    // Module de scan
-    scan: {
-        loaded: false,
-        load: () => import('./modules/scan.js')
-    },
-    // Module de graphiques avancés
-    advancedCharts: {
-        loaded: false,
-        load: () => import('./modules/advancedCharts.js')
-    },
-    // Module de rapports
-    reports: {
-        loaded: false,
-        load: () => import('./modules/reports.js')
-    }
+    budget: { loaded: false, load: () => import('./modules/budget.js') },
+    excel: { loaded: false, load: () => import('./modules/excelExport.js') },
+    scan: { loaded: false, load: () => import('./modules/scan.js') },
+    advancedCharts: { loaded: false, load: () => import('./modules/advancedCharts.js') },
+    reports: { loaded: false, load: () => import('./modules/reports.js') }
 };
 
-// Cache des modules chargés
 const loadedModules = {};
 
-// Fonction pour charger un module
 async function loadModule(moduleName) {
     if (!lazyModules[moduleName]) {
         console.warn(`⚠️ Module ${moduleName} non trouvé`);
         return null;
     }
-    
-    if (loadedModules[moduleName]) {
-        console.log(`📦 Module ${moduleName} déjà chargé`);
-        return loadedModules[moduleName];
-    }
-    
+    if (loadedModules[moduleName]) return loadedModules[moduleName];
     console.log(`🔄 Chargement du module ${moduleName}...`);
-    
-    // Afficher un indicateur de chargement
     showModuleLoading(moduleName);
-    
     try {
         const module = await lazyModules[moduleName].load();
         loadedModules[moduleName] = module;
@@ -2373,7 +2948,6 @@ async function loadModule(moduleName) {
     }
 }
 
-// Indicateur de chargement spécifique
 let loadingTimeout = null;
 
 function showModuleLoading(moduleName) {
@@ -2394,8 +2968,6 @@ function showModuleLoading(moduleName) {
         document.body.appendChild(loader);
     }
     loader.style.display = 'flex';
-    
-    // Auto-hide après 5 secondes (en cas d'erreur)
     if (loadingTimeout) clearTimeout(loadingTimeout);
     loadingTimeout = setTimeout(() => hideModuleLoading(), 5000);
 }
@@ -2406,51 +2978,7 @@ function hideModuleLoading() {
     if (loadingTimeout) clearTimeout(loadingTimeout);
 }
 
-// ========================================
-// FONCTIONS UTILISANT LE LAZY LOADING
-// ========================================
-
-// Remplacer les fonctions existantes par des versions lazy
-
-async function showBudgetSimulatorLazy() {
-    const budgetModule = await loadModule('budget');
-    if (budgetModule && budgetModule.showSimulator) {
-        budgetModule.showSimulator();
-    } else {
-        // Fallback à la fonction existante
-        if (typeof window.showBudgetSimulator === 'function') {
-            window.showBudgetSimulator();
-        }
-    }
-}
-
-async function exportToExcelLazy() {
-    const excelModule = await loadModule('excel');
-    if (excelModule && excelModule.exportToExcel) {
-        excelModule.exportToExcel();
-    } else {
-        // Fallback à la fonction existante
-        if (typeof window.exportToExcel === 'function') {
-            window.exportToExcel();
-        }
-    }
-}
-
-async function openScanModalLazy() {
-    const scanModule = await loadModule('scan');
-    if (scanModule && scanModule.openScanModal) {
-        scanModule.openScanModal();
-    } else {
-        // Fallback à la fonction existante
-        if (typeof window.openScanModal === 'function') {
-            window.openScanModal();
-        }
-    }
-}
-
-// Remplacer les fonctions existantes
-window.showBudgetSimulator = showBudgetSimulatorLazy;
-window.exportToExcel = exportToExcelLazy;
-window.openScanModal = openScanModalLazy;
-
-
+// Garder les fonctions originales
+window.showBudgetSimulatorOriginal = window.showBudgetSimulator;
+window.exportToExcelOriginal = window.exportToExcel;
+window.openScanModalOriginal = window.openScanModal;
