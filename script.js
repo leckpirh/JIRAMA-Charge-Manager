@@ -52,6 +52,9 @@ let calculationWorker = null;
 // Déclaration globale
 let scanModal = null;
 
+// Déclaration globale pour le graphique
+let budgetChart = null;
+
 let currentUser = null;
 let users = [
     { id: 1, username: 'admin', password: 'jcm0146!', role: 'admin', name: 'Administrateur' },
@@ -1843,28 +1846,6 @@ function initOfflineMode() {
     if (!navigator.onLine) showNotification('Mode hors ligne actif', 'info');
 }
 
-function showBudgetSimulator() {
-    if (persons.length === 0) { showNotification('Ajoutez des colocataires pour utiliser le simulateur', 'error'); return; }
-    const modal = document.getElementById('budgetModal');
-    const charges = getTotalCharges();
-    const total = charges.reduce((sum, c) => sum + c.totalCost, 0);
-    const period = document.getElementById('period').value;
-    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-    const [year, month] = period.split('-');
-    const monthName = monthNames[parseInt(month) - 1];
-    const simulatorHTML = `<div style="padding: 20px;"><h4 style="color: white;">Répartition du budget - ${monthName} ${year}</h4><canvas id="budgetChart" style="max-height: 300px; margin: 20px 0;"></canvas><div class="budget-details">${charges.map(charge => `<div style="margin: 10px 0; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 12px;"><strong style="color: #00d4ff;">${escapeHtml(charge.personName)}</strong><br><span style="color: white;">${((charge.totalCost / total) * 100).toFixed(1)}% du total</span><div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; margin-top: 8px;"><div style="background: #00d4ff; width: ${((charge.totalCost / total) * 100)}%; height: 8px; border-radius: 4px;"></div></div></div>`).join('')}</div><div style="text-align: center; margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #00d4ff, #0099cc); border-radius: 12px;"><h4 style="margin: 0; color: white;">Budget total mensuel</h4><p style="font-size: 32px; font-weight: bold; margin: 10px 0 0; color: white;">${total.toFixed(0)} Ar</p></div></div>`;
-    document.getElementById('budgetSimulator').innerHTML = simulatorHTML;
-    modal.style.display = 'block';
-    setTimeout(() => {
-        const ctx = document.getElementById('budgetChart');
-        if (ctx) {
-            if (budgetChart) budgetChart.destroy();
-            budgetChart = new Chart(ctx, { type: 'pie', data: { labels: charges.map(c => c.personName), datasets: [{ data: charges.map(c => c.totalCost), backgroundColor: ['#00d4ff', '#0099cc', '#33ddff', '#66e6ff', '#99eeff'] }] }, options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: 'white' } } } } });
-        }
-    }, 100);
-}
-function closeBudgetModal() { document.getElementById('budgetModal').style.display = 'none'; }
-
 function generateInvoice() {
     if (persons.length === 0) { showNotification('Ajoutez des colocataires avant de générer une facture', 'error'); return; }
     const charges = getTotalCharges();
@@ -2329,100 +2310,145 @@ window.openScanModal = openScanModalLazy;
 
 // ========== SIMULATEUR BUDGET ==========
 
-function openBudgetSimulator() {
+function showBudgetSimulator() {
     try {
-        // Supprimer modal existante si présente
-        if (document.getElementById('budgetSimulatorModal')) {
-            document.getElementById('budgetSimulatorModal').remove();
+        // Vérifier que la variable persons existe
+        if (typeof persons === 'undefined' || persons.length === 0) {
+            if (typeof showNotification === 'function') {
+                showNotification('Ajoutez des colocataires pour utiliser le simulateur', 'error');
+            } else {
+                alert('Ajoutez des colocataires pour utiliser le simulateur');
+            }
+            return;
         }
         
-        const modalHtml = `
-        <div id="budgetSimulatorModal" class="modal">
-            <div class="modal-content" style="max-width: 500px;">
-                <div class="modal-header">
-                    <h3><i class="fas fa-chart-line"></i> Simulateur de budget</h3>
-                    <span class="close" onclick="closeBudgetSimulator()">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <div style="margin-bottom: 15px;">
-                        <label><i class="fas fa-users"></i> Nombre de personnes :</label>
-                        <input type="number" id="simNbPersonnes" class="input-field" value="2" min="1" style="width: 100%; padding: 10px; margin-top: 5px;">
+        // Vérifier que getTotalCharges existe
+        if (typeof getTotalCharges !== 'function') {
+            console.error("getTotalCharges non définie");
+            alert("Erreur: fonction getTotalCharges manquante");
+            return;
+        }
+        
+        const charges = getTotalCharges();
+        
+        // Vérifier que charges est valide
+        if (!charges || charges.length === 0) {
+            alert("Aucune charge trouvée");
+            return;
+        }
+        
+        const total = charges.reduce((sum, c) => sum + (c.totalCost || 0), 0);
+        
+        if (total === 0) {
+            alert("Aucune charge enregistrée");
+            return;
+        }
+        
+        const period = document.getElementById('period')?.value || new Date().toISOString().slice(0, 7);
+        const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+        const [year, month] = period.split('-');
+        const monthName = monthNames[parseInt(month) - 1];
+        
+        // Fonction escapeHtml sécurisée
+        const safeEscapeHtml = (str) => {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        };
+        
+        const simulatorHTML = `<div style="padding: 20px;">
+            <h4 style="color: white;">Répartition du budget - ${monthName} ${year}</h4>
+            <canvas id="budgetChart" style="max-height: 300px; margin: 20px 0;"></canvas>
+            <div class="budget-details">
+                ${charges.map(charge => `<div style="margin: 10px 0; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 12px;">
+                    <strong style="color: #00d4ff;">${safeEscapeHtml(charge.personName)}</strong><br>
+                    <span style="color: white;">${((charge.totalCost / total) * 100).toFixed(1)}% du total</span>
+                    <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; margin-top: 8px;">
+                        <div style="background: #00d4ff; width: ${((charge.totalCost / total) * 100)}%; height: 8px; border-radius: 4px;"></div>
                     </div>
-                    <div style="margin-bottom: 15px;">
-                        <label><i class="fas fa-bolt"></i> Budget électricité estimé (Ar) :</label>
-                        <input type="number" id="simBudgetElec" class="input-field" value="50000" min="0" style="width: 100%; padding: 10px; margin-top: 5px;">
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <label><i class="fas fa-tint"></i> Budget eau estimé (Ar) :</label>
-                        <input type="number" id="simBudgetEau" class="input-field" value="20000" min="0" style="width: 100%; padding: 10px; margin-top: 5px;">
-                    </div>
-                    <div style="margin-bottom: 20px;">
-                        <label><i class="fas fa-wrench"></i> Budget réparations / divers (Ar) :</label>
-                        <input type="number" id="simBudgetDivers" class="input-field" value="10000" min="0" style="width: 100%; padding: 10px; margin-top: 5px;">
-                    </div>
-                    <button class="btn-glow" onclick="calculerSimulationBudget()" style="width: 100%; padding: 12px;">
-                        <i class="fas fa-calculator"></i> Calculer la répartition
-                    </button>
-                    <div id="simulationResultat" style="margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.05); border-radius: 10px; display: none;">
-                        <h4><i class="fas fa-chart-pie"></i> Résultat :</h4>
-                        <p><strong>Total charges :</strong> <span id="simTotal">0 Ar</span></p>
-                        <p><strong>Part par personne :</strong> <span id="simPartParPersonne">0 Ar</span></p>
-                        <hr>
-                        <p><i class="fas fa-lightbulb"></i> <strong>Recommandation :</strong> <span id="simRecommandation"></span></p>
-                    </div>
-                </div>
+                </div>`).join('')}
+            </div>
+            <div style="text-align: center; margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #00d4ff, #0099cc); border-radius: 12px;">
+                <h4 style="margin: 0; color: white;">Budget total mensuel</h4>
+                <p style="font-size: 32px; font-weight: bold; margin: 10px 0 0; color: white;">${total.toFixed(0)} Ar</p>
             </div>
         </div>`;
         
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        const modal = document.getElementById('budgetSimulatorModal');
-        if (modal) modal.style.display = 'block';
-        
-    } catch (error) {
-        console.error("Erreur openBudgetSimulator:", error);
-        alert("Impossible d'ouvrir le simulateur");
-    }
-}
-
-function closeBudgetSimulator() {
-    try {
-        const modal = document.getElementById('budgetSimulatorModal');
-        if (modal) modal.remove();
-    } catch (error) {
-        console.error("Erreur closeBudgetSimulator:", error);
-    }
-}
-
-function calculerSimulationBudget() {
-    try {
-        // Récupérer les valeurs
-        const nbPersonnes = parseInt(document.getElementById('simNbPersonnes')?.value) || 1;
-        const budgetElec = parseFloat(document.getElementById('simBudgetElec')?.value) || 0;
-        const budgetEau = parseFloat(document.getElementById('simBudgetEau')?.value) || 0;
-        const budgetDivers = parseFloat(document.getElementById('simBudgetDivers')?.value) || 0;
-        
-        // Calculs
-        const total = budgetElec + budgetEau + budgetDivers;
-        const partParPersonne = total / nbPersonnes;
-        
-        // Afficher les résultats
-        document.getElementById('simTotal').textContent = total.toFixed(0) + ' Ar';
-        document.getElementById('simPartParPersonne').textContent = partParPersonne.toFixed(0) + ' Ar';
-        
-        // Recommandation
-        const recommandation = document.getElementById('simRecommandation');
-        if (partParPersonne < 20000) {
-            recommandation.innerHTML = '✅ Budget confortable. Pensez à épargner la différence.';
-        } else if (partParPersonne < 40000) {
-            recommandation.innerHTML = '⚠️ Budget modéré. Surveillez votre consommation.';
+        const budgetSimulatorDiv = document.getElementById('budgetSimulator');
+        if (budgetSimulatorDiv) {
+            budgetSimulatorDiv.innerHTML = simulatorHTML;
         } else {
-            recommandation.innerHTML = '🔴 Budget élevé. Envisagez des économies d\'énergie.';
+            console.error("Element 'budgetSimulator' non trouvé");
+            alert("Erreur: élément budgetSimulator manquant");
+            return;
         }
         
-        document.getElementById('simulationResultat').style.display = 'block';
+        const modal = document.getElementById('budgetModal');
+        if (modal) {
+            modal.style.display = 'block';
+        } else {
+            console.error("Element 'budgetModal' non trouvé");
+            alert("Erreur: modal budgetModal manquante");
+            return;
+        }
+        
+        // Afficher le graphique après un court délai
+        setTimeout(() => {
+            try {
+                const ctx = document.getElementById('budgetChart');
+                if (ctx && typeof Chart !== 'undefined') {
+                    if (budgetChart) {
+                        budgetChart.destroy();
+                    }
+                    budgetChart = new Chart(ctx, { 
+                        type: 'pie', 
+                        data: { 
+                            labels: charges.map(c => c.personName), 
+                            datasets: [{ 
+                                data: charges.map(c => c.totalCost), 
+                                backgroundColor: ['#00d4ff', '#0099cc', '#33ddff', '#66e6ff', '#99eeff', '#cceeff']
+                            }] 
+                        }, 
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: true,
+                            plugins: { 
+                                legend: { 
+                                    position: 'bottom', 
+                                    labels: { color: 'white' } 
+                                } 
+                            } 
+                        } 
+                    });
+                } else if (typeof Chart === 'undefined') {
+                    console.warn("Chart.js non chargé - graphique non affiché");
+                }
+            } catch (chartError) {
+                console.error("Erreur création graphique:", chartError);
+            }
+        }, 100);
         
     } catch (error) {
-        console.error("Erreur calculerSimulationBudget:", error);
-        alert("Erreur lors du calcul");
+        console.error("Erreur showBudgetSimulator:", error);
+        alert("Erreur lors de l'ouverture du simulateur: " + error.message);
+    }
+}
+
+function closeBudgetModal() { 
+    try {
+        const modal = document.getElementById('budgetModal');
+        if (modal) modal.style.display = 'none';
+        
+        // Nettoyer le graphique
+        if (budgetChart) {
+            budgetChart.destroy();
+            budgetChart = null;
+        }
+    } catch (error) {
+        console.error("Erreur closeBudgetModal:", error);
     }
 }
