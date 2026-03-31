@@ -284,6 +284,6 @@ async function initDatabase() {
     }
 }
 
-// Exporter pour utilisation dans app.js
+// Exporter pour utilisation dans style.js
 window.db = db;
 window.initDatabase = initDatabase;
