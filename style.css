@@ -5114,3 +5114,37 @@ a:not(.social-link):not(.footer-links a):hover {
         font-size: 9px;
     }
 }
+
+/* ======================================== */
+/* INDICATEUR DE CONNEXION */
+/* ======================================== */
+
+.connection-status {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    padding: 10px 15px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 12px;
+    z-index: 10000;
+    transition: all 0.3s;
+    display: none;
+}
+
+.connection-status.online {
+    background: rgba(81, 207, 102, 0.9);
+    color: white;
+    display: block;
+}
+
+.connection-status.offline {
+    background: rgba(255, 107, 107, 0.9);
+    color: white;
+    display: block;
+}
+
+.connection-status i {
+    margin-right: 8px;
+}
