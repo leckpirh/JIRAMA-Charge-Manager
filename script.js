@@ -2905,3 +2905,381 @@ function deleteUserAccount(userId) {
         showNotification(`Compte de ${user.name} supprimé`, 'success');
     }
 }
+
+// ========================================
+// GESTION UNIFIÉE DES ÉVÉNEMENTS POUR MOBILE
+// ========================================
+
+// Détection du navigateur mobile
+const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+// Fonction universelle pour attacher des événements (click + touch)
+function attachEvent(element, handler) {
+    if (!element) return;
+    
+    // Supprimer les anciens écouteurs
+    element.removeEventListener('click', handler);
+    element.removeEventListener('touchstart', handler);
+    
+    // Sur mobile : utiliser touchstart pour meilleure réactivité
+    if (isMobile()) {
+        element.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handler(e);
+        }, { passive: false });
+    }
+    
+    // Toujours garder click pour desktop
+    element.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handler(e);
+    });
+}
+
+// Améliorer TOUS les boutons avec onclick
+function enhanceAllButtons() {
+    console.log("🚀 Amélioration des boutons pour mobile...");
+    
+    // Sélecteurs de tous les éléments cliquables
+    const selectors = [
+        'button',
+        '.action-btn',
+        '.btn-glow',
+        '.btn-outline',
+        '.btn-icon',
+        '.nav-btn',
+        '.close',
+        '.faq-question',
+        '[onclick]',
+        '.person-card button',
+        '.appliance-card button',
+        '.settings-card button'
+    ];
+    
+    selectors.forEach(selector => {
+        document.querySelectorAll(selector).forEach(element => {
+            // Vérifier si déjà amélioré
+            if (element.hasAttribute('data-enhanced')) return;
+            
+            // Sauvegarder l'onclick original
+            const originalOnClick = element.getAttribute('onclick');
+            if (originalOnClick) {
+                element.removeAttribute('onclick');
+                element.setAttribute('data-enhanced', 'true');
+                
+                // Extraire le nom de la fonction
+                const funcMatch = originalOnClick.match(/^([^(]+)/);
+                const funcName = funcMatch ? funcMatch[0].trim() : null;
+                
+                attachEvent(element, (e) => {
+                    try {
+                        if (funcName && typeof window[funcName] === 'function') {
+                            window[funcName]();
+                        } else {
+                            // Fallback: exécuter le code onclick original
+                            eval(originalOnClick);
+                        }
+                    } catch (error) {
+                        console.error(`Erreur bouton ${funcName}:`, error);
+                    }
+                });
+            } else if (!element.hasAttribute('data-enhanced')) {
+                // Pour les boutons sans onclick, on garde leur comportement
+                element.setAttribute('data-enhanced', 'true');
+            }
+        });
+    });
+}
+
+// ========================================
+// CORRECTION SPÉCIFIQUE POUR LE BOUTON DE CONNEXION
+// ========================================
+
+function initMobileLogin() {
+    console.log("🔐 Initialisation du bouton de connexion mobile...");
+    
+    // Chercher le bouton de connexion par différents sélecteurs
+    const loginBtn = document.getElementById('submitLogin') || 
+                     document.querySelector('#loginModal .btn-glow') ||
+                     document.querySelector('[onclick*="login()"]');
+    
+    if (loginBtn) {
+        console.log("✅ Bouton de connexion trouvé");
+        
+        // Supprimer l'attribut onclick s'il existe
+        loginBtn.removeAttribute('onclick');
+        loginBtn.setAttribute('data-enhanced', 'true');
+        
+        // Ajouter les événements
+        attachEvent(loginBtn, (e) => {
+            console.log("🔐 Tentative de connexion (mobile)");
+            
+            // Récupérer les valeurs
+            const usernameInput = document.getElementById('loginUsername');
+            const passwordInput = document.getElementById('loginPassword');
+            
+            const username = usernameInput?.value || '';
+            const password = passwordInput?.value || '';
+            
+            // Fermer le clavier mobile
+            document.activeElement?.blur();
+            
+            // Appeler la fonction de connexion
+            if (typeof window.login === 'function') {
+                window.login();
+            } else if (typeof login === 'function') {
+                login();
+            } else {
+                console.error("❌ Fonction login non trouvée");
+                showNotification("Erreur de connexion", "error");
+            }
+        });
+    } else {
+        console.warn("⚠️ Bouton de connexion non trouvé");
+    }
+}
+
+// ========================================
+// CORRECTION POUR TOUS LES BOUTONS SPÉCIFIQUES
+// ========================================
+
+function enhanceSpecificMobileButtons() {
+    console.log("📱 Amélioration des boutons spécifiques...");
+    
+    // Scanner facture
+    const scanBtn = document.querySelector('[onclick*="openScanModal"], .action-btn.scan, button:has(.fa-camera)');
+    if (scanBtn && !scanBtn.hasAttribute('data-enhanced')) {
+        scanBtn.removeAttribute('onclick');
+        scanBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(scanBtn, () => {
+            if (typeof openScanModal === 'function') openScanModal();
+        });
+    }
+    
+    // Simulateur budget
+    const budgetBtn = document.querySelector('[onclick*="showBudgetSimulator"], .action-btn.tertiary, button:has(.fa-chart-simple)');
+    if (budgetBtn && !budgetBtn.hasAttribute('data-enhanced')) {
+        budgetBtn.removeAttribute('onclick');
+        budgetBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(budgetBtn, () => {
+            if (typeof showBudgetSimulator === 'function') showBudgetSimulator();
+        });
+    }
+    
+    // Télécharger PDF
+    const pdfBtn = document.querySelector('[onclick*="generateInvoice"], .action-btn.secondary');
+    if (pdfBtn && !pdfBtn.hasAttribute('data-enhanced')) {
+        pdfBtn.removeAttribute('onclick');
+        pdfBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(pdfBtn, () => {
+            if (typeof generateInvoice === 'function') generateInvoice();
+        });
+    }
+    
+    // Exporter
+    const exportBtn = document.querySelector('[onclick*="exportData"], .action-btn.info');
+    if (exportBtn && !exportBtn.hasAttribute('data-enhanced')) {
+        exportBtn.removeAttribute('onclick');
+        exportBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(exportBtn, () => {
+            if (typeof exportData === 'function') exportData();
+        });
+    }
+    
+    // Importer
+    const importBtn = document.querySelector('[onclick*="importData"], .action-btn.warning');
+    if (importBtn && !importBtn.hasAttribute('data-enhanced')) {
+        importBtn.removeAttribute('onclick');
+        importBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(importBtn, () => {
+            if (typeof importData === 'function') importData();
+        });
+    }
+    
+    // Export Excel
+    const excelBtn = document.querySelector('[onclick*="exportToExcel"], .action-btn.excel');
+    if (excelBtn && !excelBtn.hasAttribute('data-enhanced')) {
+        excelBtn.removeAttribute('onclick');
+        excelBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(excelBtn, () => {
+            if (typeof exportToExcel === 'function') exportToExcel();
+        });
+    }
+}
+
+// ========================================
+// AMÉLIORATION DES MODALES POUR MOBILE
+// ========================================
+
+function enhanceModalsForMobile() {
+    console.log("📱 Amélioration des modales...");
+    
+    const modals = ['personModal', 'applianceModal', 'budgetModal', 'loginModal', 'guideModal', 'supportModal', 'faqModal', 'tarifsModal', 'scanModal', 'guestModal', 'balanceModal'];
+    
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal && !modal.hasAttribute('data-enhanced')) {
+            modal.setAttribute('data-enhanced', 'true');
+            
+            // Fermeture au clic en dehors
+            attachEvent(modal, (e) => {
+                if (e.target === modal) {
+                    // Chercher la fonction de fermeture appropriée
+                    const closeFuncName = `close${modalId.charAt(0).toUpperCase() + modalId.slice(1)}`;
+                    if (typeof window[closeFuncName] === 'function') {
+                        window[closeFuncName]();
+                    } else if (modalId === 'loginModal') {
+                        const loginModal = document.getElementById('loginModal');
+                        if (loginModal) loginModal.style.display = 'none';
+                    } else {
+                        modal.style.display = 'none';
+                    }
+                }
+            });
+            
+            // Empêcher la propagation du clic à l'intérieur de la modal
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+        }
+    });
+}
+
+// ========================================
+// CORRECTION DU SCROLL POUR MOBILE
+// ========================================
+
+function fixMobileScroll() {
+    if (!isMobile()) return;
+    
+    console.log("📱 Correction du scroll mobile...");
+    
+    // Empêcher le scroll de fond quand une modal est ouverte
+    const originalBodyOverflow = document.body.style.overflow;
+    
+    const observer = new MutationObserver(() => {
+        const openModals = document.querySelectorAll('.modal[style*="display: block"], .modal[style*="display: block;"]');
+        if (openModals.length > 0) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = originalBodyOverflow;
+        }
+    });
+    
+    observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['style'] });
+}
+
+// ========================================
+// GESTION DU CLAVIER MOBILE
+// ========================================
+
+function handleMobileKeyboard() {
+    if (!isMobile()) return;
+    
+    console.log("📱 Gestion du clavier mobile...");
+    
+    // Fermer le clavier quand on clique en dehors des inputs
+    document.addEventListener('click', (e) => {
+        const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+        if (!isInput) {
+            document.activeElement?.blur();
+        }
+    });
+    
+    // Pour les formulaires, permettre la validation avec Entrée
+    const loginPassword = document.getElementById('loginPassword');
+    if (loginPassword) {
+        loginPassword.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.activeElement?.blur();
+                setTimeout(() => {
+                    if (typeof login === 'function') login();
+                }, 100);
+            }
+        });
+    }
+}
+
+// ========================================
+// INITIALISATION UNIVERSELLE POUR MOBILE
+// ========================================
+
+function initMobileSupport() {
+    console.log("📱 Initialisation du support mobile...");
+    
+    // Attendre que le DOM soit chargé
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            enhanceAllButtons();
+            initMobileLogin();
+            enhanceSpecificMobileButtons();
+            enhanceModalsForMobile();
+            fixMobileScroll();
+            handleMobileKeyboard();
+        });
+    } else {
+        enhanceAllButtons();
+        initMobileLogin();
+        enhanceSpecificMobileButtons();
+        enhanceModalsForMobile();
+        fixMobileScroll();
+        handleMobileKeyboard();
+    }
+    
+    // Observer les changements dynamiques du DOM
+    const observer = new MutationObserver((mutations) => {
+        let needsUpdate = false;
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                needsUpdate = true;
+            }
+        });
+        if (needsUpdate) {
+            enhanceAllButtons();
+            enhanceSpecificMobileButtons();
+        }
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+
+// Lancer l'initialisation mobile
+initMobileSupport();
+
+// ========================================
+// FERMETURE DU CLAVIER APRÈS CONNEXION
+// ========================================
+
+// Surcharger la fonction login pour fermer le clavier
+const originalLogin = window.login || login;
+window.login = function() {
+    // Fermer le clavier mobile
+    document.activeElement?.blur();
+    
+    // Appeler la fonction originale
+    if (typeof originalLogin === 'function') {
+        originalLogin();
+    }
+};
+
+// Surcharger showLoginModal pour forcer l'affichage
+const originalShowLoginModal = window.showLoginModal || showLoginModal;
+window.showLoginModal = function() {
+    // Fermer tout clavier ouvert
+    document.activeElement?.blur();
+    
+    // Appeler la fonction originale
+    if (typeof originalShowLoginModal === 'function') {
+        originalShowLoginModal();
+    }
+};
+
+console.log("✅ Support mobile activé - Tous les boutons sont optimisés pour le tactile");
