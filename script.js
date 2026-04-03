@@ -3232,3 +3232,13 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("✅ Correction globale terminée");
     }, 500);
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    const closeBtn = document.getElementById('closeLoginBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            const modal = document.getElementById('loginModal');
+            if (modal) modal.style.display = 'none';
+        });
+    }
+});
