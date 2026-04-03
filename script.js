@@ -3045,102 +3045,103 @@ function initMobileLogin() {
     }
 }
 
-
-
 // ========================================
-// CORRECTION GLOBALE POUR TOUS LES BOUTONS
+// CORRECTION POUR TOUS LES BOUTONS SPÉCIFIQUES
 // ========================================
 
-// Attendre que la page soit chargée
-document.addEventListener('DOMContentLoaded', function() {
-    console.log("🔄 Correction globale des boutons...");
+function enhanceSpecificMobileButtons() {
+    console.log("📱 Amélioration des boutons spécifiques...");
     
-    // Fonction pour sécuriser un bouton
-    function secureButton(btn, callback) {
-        if (!btn) return;
-        
-        // Supprimer les anciens attributs onclick
-        btn.removeAttribute('onclick');
-        
-        // Créer un nouveau bouton pour éviter les événements en double
-        const newBtn = btn.cloneNode(true);
-        btn.parentNode.replaceChild(newBtn, btn);
-        
-        // Ajouter les événements
-        newBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("Bouton cliqué:", callback.name);
-            try {
-                callback();
-            } catch(err) {
-                console.error("Erreur:", err);
-            }
+    // Scanner facture
+    const scanBtn = document.querySelector('[onclick*="openScanModal"], .action-btn.scan, button:has(.fa-camera)');
+    if (scanBtn && !scanBtn.hasAttribute('data-enhanced')) {
+        scanBtn.removeAttribute('onclick');
+        scanBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(scanBtn, () => {
+            if (typeof openScanModal === 'function') openScanModal();
         });
-        
-        // Pour mobile
-        newBtn.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("Touch sur bouton:", callback.name);
-            try {
-                callback();
-            } catch(err) {
-                console.error("Erreur:", err);
-            }
-        });
-        
-        return newBtn;
     }
     
-    // Attendre un peu que tous les éléments soient chargés
+    // Simulateur budget
+    const budgetBtn = document.querySelector('[onclick*="showBudgetSimulator"], .action-btn.tertiary, button:has(.fa-chart-simple)');
+    if (budgetBtn && !budgetBtn.hasAttribute('data-enhanced')) {
+        budgetBtn.removeAttribute('onclick');
+        budgetBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(budgetBtn, () => {
+            if (typeof showBudgetSimulator === 'function') showBudgetSimulator();
+        });
+    }
+    
+    // Télécharger PDF
+    const pdfBtn = document.querySelector('[onclick*="generateInvoice"], .action-btn.secondary');
+    if (pdfBtn && !pdfBtn.hasAttribute('data-enhanced')) {
+        pdfBtn.removeAttribute('onclick');
+        pdfBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(pdfBtn, () => {
+            if (typeof generateInvoice === 'function') generateInvoice();
+        });
+    }
+    
+    // Exporter
+    const exportBtn = document.querySelector('[onclick*="exportData"], .action-btn.info');
+    if (exportBtn && !exportBtn.hasAttribute('data-enhanced')) {
+        exportBtn.removeAttribute('onclick');
+        exportBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(exportBtn, () => {
+            if (typeof exportData === 'function') exportData();
+        });
+    }
+    
+    // Importer
+    const importBtn = document.querySelector('[onclick*="importData"], .action-btn.warning');
+    if (importBtn && !importBtn.hasAttribute('data-enhanced')) {
+        importBtn.removeAttribute('onclick');
+        importBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(importBtn, () => {
+            if (typeof importData === 'function') importData();
+        });
+    }
+    
+    // Export Excel
+    const excelBtn = document.querySelector('[onclick*="exportToExcel"], .action-btn.excel');
+    if (excelBtn && !excelBtn.hasAttribute('data-enhanced')) {
+        excelBtn.removeAttribute('onclick');
+        excelBtn.setAttribute('data-enhanced', 'true');
+        attachEvent(excelBtn, () => {
+            if (typeof exportToExcel === 'function') exportToExcel();
+        });
+    }
+}
+
+// SOLUTION SIMPLE POUR LE BOUTON DE CONNEXION MOBILE
+document.addEventListener('DOMContentLoaded', function() {
+    // Attendre que le bouton existe
     setTimeout(function() {
-        // Bouton de connexion
-        const loginBtn = document.getElementById('submitLogin');
-        if (loginBtn) secureButton(loginBtn, login);
-        
-        // Tous les autres boutons importants
-        const buttons = [
-            { selector: '.action-btn.scan', callback: openScanModal },
-            { selector: '.action-btn.tertiary', callback: showBudgetSimulator },
-            { selector: '.action-btn.secondary', callback: generateInvoice },
-            { selector: '.action-btn.info', callback: exportData },
-            { selector: '.action-btn.warning', callback: importData },
-            { selector: '.action-btn.excel', callback: exportToExcel }
-        ];
-        
-        buttons.forEach(function(item) {
-            const btn = document.querySelector(item.selector);
-            if (btn && typeof item.callback === 'function') {
-                secureButton(btn, item.callback);
-                console.log("✅ Bouton sécurisé:", item.selector);
-            }
-        });
-        
-        // Tous les boutons avec la classe .btn-glow
-        document.querySelectorAll('.btn-glow').forEach(function(btn) {
-            if (btn.id !== 'submitLogin' && !btn.hasAttribute('data-secured')) {
-                btn.setAttribute('data-secured', 'true');
-                const onclickAttr = btn.getAttribute('onclick');
-                if (onclickAttr) {
-                    const funcName = onclickAttr.split('(')[0];
-                    if (typeof window[funcName] === 'function') {
-                        secureButton(btn, window[funcName]);
-                    }
-                }
-            }
-        });
-        
-        console.log("✅ Correction globale terminée");
+        var loginBtn = document.getElementById('submitLogin');
+        if (loginBtn) {
+            // Supprimer tous les anciens événements
+            var newBtn = loginBtn.cloneNode(true);
+            loginBtn.parentNode.replaceChild(newBtn, loginBtn);
+            
+            // Ajouter un événement simple
+            newBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log("Bouton cliqué");
+                // Appeler la fonction login
+                login();
+            });
+            
+            // Pour mobile, aussi gérer touchstart
+            newBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                console.log("Touch détecté");
+                login();
+            });
+            
+            console.log("✅ Bouton de connexion initialisé");
+        } else {
+            console.log("❌ Bouton submitLogin non trouvé");
+        }
     }, 500);
 });
 
-document.addEventListener('DOMContentLoaded', function() {
-    const closeBtn = document.getElementById('closeLoginBtn');
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function() {
-            const modal = document.getElementById('loginModal');
-            if (modal) modal.style.display = 'none';
-        });
-    }
-});
