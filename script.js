@@ -374,16 +374,31 @@ function escapeHtml(str) {
 }
 
 function showNotification(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `toast-notification ${type}`;
-    toast.innerHTML = `<div class="toast-icon"><i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i></div>
-        <div class="toast-content"><strong>${type === 'success' ? 'Succès' : 'Information'}</strong><p>${message}</p></div>
-        <div class="toast-progress"></div>`;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-        toast.style.animation = 'slideOutRight 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    try {
+        // Éviter la récursion infinie
+        if (window._showingNotification) return;
+        window._showingNotification = true;
+        
+        // Supprimer les anciennes notifications
+        const oldToasts = document.querySelectorAll('.toast-notification');
+        oldToasts.forEach(toast => toast.remove());
+        
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type}`;
+        toast.innerHTML = `<div class="toast-icon"><i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i></div>
+            <div class="toast-content"><strong>${type === 'success' ? 'Succès' : 'Information'}</strong><p>${message}</p></div>
+            <div class="toast-progress"></div>`;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast && toast.remove) toast.remove();
+            window._showingNotification = false;
+        }, 3000);
+    } catch (error) {
+        console.warn("Erreur notification:", error);
+        window._showingNotification = false;
+        alert(message);
+    }
 }
 
 function switchTab(tabId) {
@@ -1861,25 +1876,6 @@ function applyDetectedValues() {
 }
 
 // ========================================
-// THÈME
-// ========================================
-
-function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    const themeSelector = document.getElementById('themeSelector');
-    if (themeSelector) {
-        themeSelector.value = savedTheme;
-        applyTheme(savedTheme);
-        themeSelector.addEventListener('change', (e) => { const theme = e.target.value; localStorage.setItem('theme', theme); applyTheme(theme); });
-    }
-}
-function applyTheme(theme) {
-    if (theme === 'light') { document.body.classList.add('light-mode'); document.body.classList.remove('dark-mode'); }
-    else if (theme === 'dark') { document.body.classList.add('dark-mode'); document.body.classList.remove('light-mode'); }
-    else { const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; if (prefersDark) { document.body.classList.add('dark-mode'); document.body.classList.remove('light-mode'); } else { document.body.classList.add('light-mode'); document.body.classList.remove('dark-mode'); } }
-}
-
-// ========================================
 // AUTHENTIFICATION
 // ========================================
 
@@ -1911,6 +1907,12 @@ function login() {
     } else {
         showNotification('Nom d\'utilisateur/email ou mot de passe incorrect', 'error');
     }
+}
+
+function closeLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.style.display = 'none';
+    document.activeElement?.blur();
 }
 
 function filterDataByPersonId(personId) {
@@ -3140,5 +3142,93 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             console.log("❌ Bouton submitLogin non trouvé");
         }
+    }, 500);
+});
+
+// ========================================
+// CORRECTION GLOBALE POUR TOUS LES BOUTONS
+// ========================================
+
+// Attendre que la page soit chargée
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("🔄 Correction globale des boutons...");
+    
+    // Fonction pour sécuriser un bouton
+    function secureButton(btn, callback) {
+        if (!btn) return;
+        
+        // Supprimer les anciens attributs onclick
+        btn.removeAttribute('onclick');
+        
+        // Créer un nouveau bouton pour éviter les événements en double
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        
+        // Ajouter les événements
+        newBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("Bouton cliqué:", callback.name);
+            try {
+                callback();
+            } catch(err) {
+                console.error("Erreur:", err);
+            }
+        });
+        
+        // Pour mobile
+        newBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("Touch sur bouton:", callback.name);
+            try {
+                callback();
+            } catch(err) {
+                console.error("Erreur:", err);
+            }
+        });
+        
+        return newBtn;
+    }
+    
+    // Attendre un peu que tous les éléments soient chargés
+    setTimeout(function() {
+        // Bouton de connexion
+        const loginBtn = document.getElementById('submitLogin');
+        if (loginBtn) secureButton(loginBtn, login);
+        
+        // Tous les autres boutons importants
+        const buttons = [
+            { selector: '.action-btn.scan', callback: openScanModal },
+            { selector: '.action-btn.tertiary', callback: showBudgetSimulator },
+            { selector: '.action-btn.secondary', callback: generateInvoice },
+            { selector: '.action-btn.info', callback: exportData },
+            { selector: '.action-btn.warning', callback: importData },
+            { selector: '.action-btn.excel', callback: exportToExcel }
+        ];
+        
+        buttons.forEach(function(item) {
+            const btn = document.querySelector(item.selector);
+            if (btn && typeof item.callback === 'function') {
+                secureButton(btn, item.callback);
+                console.log("✅ Bouton sécurisé:", item.selector);
+            }
+        });
+        
+        // Tous les boutons avec la classe .btn-glow
+        document.querySelectorAll('.btn-glow').forEach(function(btn) {
+            if (btn.id !== 'submitLogin' && !btn.hasAttribute('data-secured')) {
+                btn.setAttribute('data-secured', 'true');
+                const onclickAttr = btn.getAttribute('onclick');
+                if (onclickAttr) {
+                    const funcName = onclickAttr.split('(')[0];
+                    if (typeof window[funcName] === 'function') {
+                        secureButton(btn, window[funcName]);
+                    }
+                }
+            }
+        });
+        
+        console.log("✅ Correction globale terminée");
     }, 500);
 });
