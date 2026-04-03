@@ -3111,52 +3111,34 @@ function enhanceSpecificMobileButtons() {
     }
 }
 
-// ========================================
-// SOLUTION SIMPLE POUR MOBILE
-// ========================================
-
-// Détection mobile
-const isMobileDevice = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
-// Correction UNIQUEMENT pour le bouton de connexion
-function fixMobileLogin() {
-    if (!isMobileDevice()) return;
-    
-    console.log("📱 Mode mobile détecté - Correction du bouton de connexion");
-    
-    // Attendre que le DOM soit chargé
-    setTimeout(() => {
-        const loginBtn = document.getElementById('submitLogin');
+// SOLUTION SIMPLE POUR LE BOUTON DE CONNEXION MOBILE
+document.addEventListener('DOMContentLoaded', function() {
+    // Attendre que le bouton existe
+    setTimeout(function() {
+        var loginBtn = document.getElementById('submitLogin');
         if (loginBtn) {
-            // Supprimer l'ancien onclick
-            loginBtn.removeAttribute('onclick');
+            // Supprimer tous les anciens événements
+            var newBtn = loginBtn.cloneNode(true);
+            loginBtn.parentNode.replaceChild(newBtn, loginBtn);
             
-            // Ajouter un simple écouteur SANS preventDefault
-            loginBtn.addEventListener('click', function() {
+            // Ajouter un événement simple
+            newBtn.addEventListener('click', function(e) {
+                e.preventDefault();
                 console.log("Bouton cliqué");
-                // Petite pause pour que le clavier ait le temps de se fermer
-                setTimeout(() => {
-                    login();
-                }, 50);
+                // Appeler la fonction login
+                login();
             });
+            
+            // Pour mobile, aussi gérer touchstart
+            newBtn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                console.log("Touch détecté");
+                login();
+            });
+            
+            console.log("✅ Bouton de connexion initialisé");
         } else {
-            // Chercher par d'autres moyens
-            const btn = document.querySelector('#loginModal .btn-glow');
-            if (btn) {
-                btn.removeAttribute('onclick');
-                btn.addEventListener('click', function() {
-                    setTimeout(() => login(), 50);
-                });
-            }
+            console.log("❌ Bouton submitLogin non trouvé");
         }
-    }, 100);
-}
-
-// Lancer au chargement
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', fixMobileLogin);
-} else {
-    fixMobileLogin();
-}
+    }, 500);
+});
