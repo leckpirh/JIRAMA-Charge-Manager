@@ -3112,174 +3112,51 @@ function enhanceSpecificMobileButtons() {
 }
 
 // ========================================
-// AMÉLIORATION DES MODALES POUR MOBILE
+// SOLUTION SIMPLE POUR MOBILE
 // ========================================
 
-function enhanceModalsForMobile() {
-    console.log("📱 Amélioration des modales...");
+// Détection mobile
+const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+// Correction UNIQUEMENT pour le bouton de connexion
+function fixMobileLogin() {
+    if (!isMobileDevice()) return;
     
-    const modals = ['personModal', 'applianceModal', 'budgetModal', 'loginModal', 'guideModal', 'supportModal', 'faqModal', 'tarifsModal', 'scanModal', 'guestModal', 'balanceModal'];
+    console.log("📱 Mode mobile détecté - Correction du bouton de connexion");
     
-    modals.forEach(modalId => {
-        const modal = document.getElementById(modalId);
-        if (modal && !modal.hasAttribute('data-enhanced')) {
-            modal.setAttribute('data-enhanced', 'true');
+    // Attendre que le DOM soit chargé
+    setTimeout(() => {
+        const loginBtn = document.getElementById('submitLogin');
+        if (loginBtn) {
+            // Supprimer l'ancien onclick
+            loginBtn.removeAttribute('onclick');
             
-            // Fermeture au clic en dehors
-            attachEvent(modal, (e) => {
-                if (e.target === modal) {
-                    // Chercher la fonction de fermeture appropriée
-                    const closeFuncName = `close${modalId.charAt(0).toUpperCase() + modalId.slice(1)}`;
-                    if (typeof window[closeFuncName] === 'function') {
-                        window[closeFuncName]();
-                    } else if (modalId === 'loginModal') {
-                        const loginModal = document.getElementById('loginModal');
-                        if (loginModal) loginModal.style.display = 'none';
-                    } else {
-                        modal.style.display = 'none';
-                    }
-                }
+            // Ajouter un simple écouteur SANS preventDefault
+            loginBtn.addEventListener('click', function() {
+                console.log("Bouton cliqué");
+                // Petite pause pour que le clavier ait le temps de se fermer
+                setTimeout(() => {
+                    login();
+                }, 50);
             });
-            
-            // Empêcher la propagation du clic à l'intérieur de la modal
-            const modalContent = modal.querySelector('.modal-content');
-            if (modalContent) {
-                modalContent.addEventListener('click', (e) => {
-                    e.stopPropagation();
+        } else {
+            // Chercher par d'autres moyens
+            const btn = document.querySelector('#loginModal .btn-glow');
+            if (btn) {
+                btn.removeAttribute('onclick');
+                btn.addEventListener('click', function() {
+                    setTimeout(() => login(), 50);
                 });
             }
         }
-    });
+    }, 100);
 }
 
-// ========================================
-// CORRECTION DU SCROLL POUR MOBILE
-// ========================================
-
-function fixMobileScroll() {
-    if (!isMobile()) return;
-    
-    console.log("📱 Correction du scroll mobile...");
-    
-    // Empêcher le scroll de fond quand une modal est ouverte
-    const originalBodyOverflow = document.body.style.overflow;
-    
-    const observer = new MutationObserver(() => {
-        const openModals = document.querySelectorAll('.modal[style*="display: block"], .modal[style*="display: block;"]');
-        if (openModals.length > 0) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = originalBodyOverflow;
-        }
-    });
-    
-    observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['style'] });
+// Lancer au chargement
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', fixMobileLogin);
+} else {
+    fixMobileLogin();
 }
-
-// ========================================
-// GESTION DU CLAVIER MOBILE
-// ========================================
-
-function handleMobileKeyboard() {
-    if (!isMobile()) return;
-    
-    console.log("📱 Gestion du clavier mobile...");
-    
-    // Fermer le clavier quand on clique en dehors des inputs
-    document.addEventListener('click', (e) => {
-        const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
-        if (!isInput) {
-            document.activeElement?.blur();
-        }
-    });
-    
-    // Pour les formulaires, permettre la validation avec Entrée
-    const loginPassword = document.getElementById('loginPassword');
-    if (loginPassword) {
-        loginPassword.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                document.activeElement?.blur();
-                setTimeout(() => {
-                    if (typeof login === 'function') login();
-                }, 100);
-            }
-        });
-    }
-}
-
-// ========================================
-// INITIALISATION UNIVERSELLE POUR MOBILE
-// ========================================
-
-function initMobileSupport() {
-    console.log("📱 Initialisation du support mobile...");
-    
-    // Attendre que le DOM soit chargé
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            enhanceAllButtons();
-            initMobileLogin();
-            enhanceSpecificMobileButtons();
-            enhanceModalsForMobile();
-            fixMobileScroll();
-            handleMobileKeyboard();
-        });
-    } else {
-        enhanceAllButtons();
-        initMobileLogin();
-        enhanceSpecificMobileButtons();
-        enhanceModalsForMobile();
-        fixMobileScroll();
-        handleMobileKeyboard();
-    }
-    
-    // Observer les changements dynamiques du DOM
-    const observer = new MutationObserver((mutations) => {
-        let needsUpdate = false;
-        mutations.forEach((mutation) => {
-            if (mutation.addedNodes.length) {
-                needsUpdate = true;
-            }
-        });
-        if (needsUpdate) {
-            enhanceAllButtons();
-            enhanceSpecificMobileButtons();
-        }
-    });
-    
-    observer.observe(document.body, { childList: true, subtree: true });
-}
-
-// Lancer l'initialisation mobile
-initMobileSupport();
-
-// ========================================
-// FERMETURE DU CLAVIER APRÈS CONNEXION
-// ========================================
-
-// Surcharger la fonction login pour fermer le clavier
-const originalLogin = window.login || login;
-window.login = function() {
-    // Fermer le clavier mobile
-    document.activeElement?.blur();
-    
-    // Appeler la fonction originale
-    if (typeof originalLogin === 'function') {
-        originalLogin();
-    }
-};
-
-// Surcharger showLoginModal pour forcer l'affichage
-const originalShowLoginModal = window.showLoginModal || showLoginModal;
-window.showLoginModal = function() {
-    // Fermer tout clavier ouvert
-    document.activeElement?.blur();
-    
-    // Appeler la fonction originale
-    if (typeof originalShowLoginModal === 'function') {
-        originalShowLoginModal();
-    }
-};
-
-console.log("✅ Support mobile activé - Tous les boutons sont optimisés pour le tactile");
