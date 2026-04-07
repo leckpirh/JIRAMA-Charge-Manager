@@ -10,6 +10,10 @@ let history = [];
 let evolutionData = [];
 let evolutionChart;
 
+let elecTarifMethod = 'simple';
+let budgetChart = null;
+let calculationWorker = null;
+
 let actualPricePerKwh = 0;
 let actualPricePerM3 = 0;
 
@@ -373,32 +377,15 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Correction de showNotification (simplifiée, sans récursion)
 function showNotification(message, type) {
-    try {
-        // Éviter la récursion infinie
-        if (window._showingNotification) return;
-        window._showingNotification = true;
-        
-        // Supprimer les anciennes notifications
-        const oldToasts = document.querySelectorAll('.toast-notification');
-        oldToasts.forEach(toast => toast.remove());
-        
-        const toast = document.createElement('div');
-        toast.className = `toast-notification ${type}`;
-        toast.innerHTML = `<div class="toast-icon"><i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i></div>
-            <div class="toast-content"><strong>${type === 'success' ? 'Succès' : 'Information'}</strong><p>${message}</p></div>
-            <div class="toast-progress"></div>`;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            if (toast && toast.remove) toast.remove();
-            window._showingNotification = false;
-        }, 3000);
-    } catch (error) {
-        console.warn("Erreur notification:", error);
-        window._showingNotification = false;
-        alert(message);
-    }
+    const toast = document.createElement('div');
+    toast.className = `toast-notification ${type}`;
+    toast.innerHTML = `<div class="toast-icon"><i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'}"></i></div>
+        <div class="toast-content"><strong>${type === 'success' ? 'Succès' : 'Information'}</strong><p>${message}</p></div>
+        <div class="toast-progress"></div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 function switchTab(tabId) {
@@ -2245,10 +2232,16 @@ function generateInvoice() {
     const monthName = monthNames[parseInt(month) - 1];
     const chargesWithPercent = charges.map(c => ({ ...c, percent: total > 0 ? (c.totalCost / total) * 100 : 0 }));
     const invoiceHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture JIRAMA - ${monthName} ${year}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter','Segoe UI',Arial,sans-serif;background:#f5f7fa;padding:30px}.invoice-container{max-width:1000px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 10px 35px rgba(0,0,0,0.1);overflow:hidden}.invoice-header{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);padding:30px;color:#fff;text-align:center}.invoice-title h1{font-size:28px;font-weight:700;margin:0 0 8px}.invoice-title p{font-size:14px;opacity:0.9;margin:0}.invoice-period{background:rgba(255,255,255,0.2);display:inline-block;padding:6px 16px;border-radius:30px;font-size:13px;margin-top:15px}.info-section{display:flex;gap:20px;padding:25px 30px;background:#f8fafc;border-bottom:1px solid #e2e8f0}.info-card{flex:1;background:#fff;padding:18px 20px;border-radius:12px;border:1px solid #e9ecef}.info-card h3{color:#1e3c72;font-size:13px;text-transform:uppercase;margin-bottom:12px}.info-card p{margin:8px 0;color:#2c3e50;display:flex;justify-content:space-between;font-size:14px}.total-amount{font-size:22px;font-weight:700;color:#10b981;text-align:right}.table-section{padding:25px 30px}.table-section h3{color:#1e3c72;margin-bottom:15px;font-size:16px}.invoice-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e9ecef}.invoice-table th{background:#1e3c72;color:#fff;padding:12px 15px;text-align:left;font-weight:600;font-size:13px}.invoice-table td{padding:12px 15px;border-bottom:1px solid #e9ecef;color:#2c3e50;font-size:13px}.total-row{background:#f1f5f9;font-weight:700}.amount{text-align:right}.progress-section{padding:0 30px 25px}.progress-section h3{color:#1e3c72;margin-bottom:15px;font-size:16px}.progress-item{margin-bottom:12px}.progress-label{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px;color:#475569}.progress-bar-bg{background:#e2e8f0;border-radius:20px;height:8px;overflow:hidden}.progress-bar-fill{background:linear-gradient(90deg,#00d4ff,#0099cc);height:100%;border-radius:20px}.invoice-footer{background:#1e293b;padding:20px 30px;color:#94a3b8;text-align:center;font-size:11px}.footer-links{margin-top:10px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap}@media(max-width:640px){body{padding:15px}.info-section{flex-direction:column;padding:20px}.table-section{padding:20px;overflow-x:auto}.invoice-table{min-width:500px}}</style><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"></head><body><div class="invoice-container"><div class="invoice-header"><div class="invoice-title"><h1>JIRAMA Charge Manager</h1><p>Facture des charges d'électricité et d'eau</p><div class="invoice-period"><i class="fas fa-calendar-alt"></i> Période : ${monthName} ${year}</div></div></div><div class="info-section"><div class="info-card"><h3><i class="fas fa-charging-station"></i> Détails JIRAMA</h3><p><strong>Électricité :</strong> <span>${elecBillAmount.toFixed(0)} Ar</span></p><p><strong>Eau :</strong> <span>${waterBillAmount.toFixed(0)} Ar</span></p><p><strong>Total factures :</strong> <span class="total-amount">${(elecBillAmount + waterBillAmount).toFixed(0)} Ar</span></p></div><div class="info-card"><h3><i class="fas fa-info-circle"></i> Informations</h3><p><strong>Date d'émission :</strong> <span>${date}</span></p><p><strong>Nombre de colocataires :</strong> <span>${persons.length}</span></p><p><strong>Total des charges :</strong> <span class="total-amount">${total.toFixed(0)} Ar</span></p><p><strong>Date d'échéance :</strong> <span>${new Date(new Date().setMonth(new Date().getMonth() + 1)).toLocaleDateString('fr-FR')}</span></p></div></div><div class="table-section"><h3><i class="fas fa-users"></i> Répartition des charges par colocataire</h3><table class="invoice-table"><thead><tr><th>Colocataire</th><th>Électricité (Ar)</th><th>Eau (Ar)</th><th>Total (Ar)</th><th>Part</th></tr></thead><tbody>${chargesWithPercent.map(charge => `<tr><td><strong>${escapeHtml(charge.personName)}</strong></td><td class="amount">${charge.electricityCost.toFixed(0)} Ar</td><td class="amount">${charge.waterCost.toFixed(0)} Ar</td><td class="amount"><strong>${charge.totalCost.toFixed(0)} Ar</strong></td><td class="amount">${charge.percent.toFixed(1)}%</td></tr>`).join('')}<tr class="total-row"><td><strong>TOTAL</strong></td><td class="amount"><strong>${charges.reduce((sum,c)=>sum+c.electricityCost,0).toFixed(0)} Ar</strong></td><td class="amount"><strong>${charges.reduce((sum,c)=>sum+c.waterCost,0).toFixed(0)} Ar</strong></td><td class="amount"><strong>${total.toFixed(0)} Ar</strong></td><td class="amount"><strong>100%</strong></td></tr></tbody></table></div><div class="progress-section"><h3><i class="fas fa-chart-pie"></i> Répartition visuelle des charges</h3>${chargesWithPercent.map(charge => `<div class="progress-item"><div class="progress-label"><span>${escapeHtml(charge.personName)}</span><span>${charge.totalCost.toFixed(0)} Ar (${charge.percent.toFixed(1)}%)</span></div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width: ${charge.percent}%"></div></div></div>`).join('')}</div><div class="invoice-footer"><p>Facture générée automatiquement par JIRAMA Charge Manager</p><div class="footer-links"><span><i class="fas fa-phone"></i> +261 34 30 000 30</span><span><i class="fas fa-envelope"></i> support@jirama.mg</span><span><i class="fas fa-globe"></i> www.jirama.mg</span></div><p style="margin-top:12px;font-size:10px;">Merci de régler votre part avant la date d'échéance</p></div></div></body></html>`;
-    const element = document.createElement('div');
+     const element = document.createElement('div');
     element.innerHTML = invoiceHTML;
-    html2pdf().from(element).set({ margin: 0.3, filename: `facture_JIRAMA_${monthName}_${year}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, letterRendering: true }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress: true } }).save();
-    history.unshift({ date: new Date().toISOString(), period, type: 'facture', total });
+    const opt = {
+        margin: 0.3,
+        filename: `facture_JIRAMA_${monthName}_${year}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, letterRendering: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress: true }
+    };
+    html2pdf().set(opt).from(element).save();
     saveData();
     updateHistory();
     saveMonthlyData();
@@ -2274,65 +2267,19 @@ function setupEventListeners() {
 
 function sendQuickMessage(event) { event.preventDefault(); const name = event.target.querySelector('input[type="text"]')?.value; const email = event.target.querySelector('input[type="email"]')?.value; const message = event.target.querySelector('textarea')?.value; if (name && email && message) { showNotification(`Merci ${name} ! Votre message a été envoyé.`, 'success'); event.target.reset(); } else { showNotification('Veuillez remplir tous les champs', 'error'); } }
 
-// Exposer les fonctions globales
-window.switchTab = switchTab;
-window.showPersonModal = showPersonModal;
-window.closePersonModal = closePersonModal;
-window.deletePerson = deletePerson;
-window.showApplianceModal = showApplianceModal;
-window.closeApplianceModal = closeApplianceModal;
-window.deleteAppliance = deleteAppliance;
-window.importDefaultAppliances = importDefaultAppliances;
-window.markAsPaid = markAsPaid;
-window.generateInvoice = generateInvoice;
-window.shareBill = shareBill;
-window.saveSettings = saveSettings;
-window.resetData = resetData;
-window.clearHistory = clearHistory;
-window.showBudgetSimulator = showBudgetSimulator;
-window.closeBudgetModal = closeBudgetModal;
-window.refreshChart = refreshChart;
-window.exportData = exportData;
-window.importData = importData;
-window.refreshEvolutionChart = refreshEvolutionChart;
-window.sendInvoiceByEmail = sendInvoiceByEmail;
-window.sendEmailTest = sendEmailTest;
-window.showExpenseModal = showExpenseModal;
-window.showGuestModal = showGuestModal;
-window.showBalanceModal = showBalanceModal;
-window.syncToCloud = syncToCloud;
+// Exposer les fonctions globalement
+window.login = login;
+window.closeLoginModal = closeLoginModal;
+window.processImage = processImage;
+window.simulateOCR = simulateOCR;
+window.applyDetectedValues = applyDetectedValues;
+window.saveToCloud = saveToCloud;
 window.restoreFromCloud = restoreFromCloud;
-window.signInToDrive = signInToDrive;
-window.exportToExcel = exportToExcel;
-window.openScanModal = openScanModal;
-window.showGuide = showGuide;
-window.closeGuideModal = closeGuideModal;
-window.showSupport = showSupport;
-window.closeSupportModal = closeSupportModal;
-window.showFAQ = showFAQ;
-window.closeFAQModal = closeFAQModal;
-window.showTarifs = showTarifs;
-window.closeTarifsModal = closeTarifsModal;
-window.showLegal = showLegal;
-window.showPrivacy = showPrivacy;
-window.showTerms = showTerms;
-window.showCookies = showCookies;
-window.showAccessibility = showAccessibility;
-window.showMobileApp = showMobileApp;
-window.showWebApp = showWebApp;
-window.showAPI = showAPI;
-window.showDocumentation = showDocumentation;
-window.reportBug = reportBug;
-window.suggestFeature = suggestFeature;
-window.refreshCalendar = refreshCalendar;
-window.addElecTranche = addElecTranche;
-window.removeElecTranche = removeElecTranche;
-window.addWaterTranche = addWaterTranche;
-window.removeWaterTranche = removeWaterTranche;
-window.sendQuickMessage = sendQuickMessage;
-window.showDayDetails = showDayDetails;
+window.updateConnectionStatus = updateConnectionStatus;
+window.initWorker = initWorker;
+window.calculateChargesWithWorker = calculateChargesWithWorker;
 
-// Initialisation principale
+// Initialisation au chargement
 document.addEventListener('DOMContentLoaded', () => {
     generatePeriodOptions();
     loadData();
@@ -2348,7 +2295,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initConsumptionPreview();
     initEmailJS();
     initGoogleAPI();
-    initTheme();
+    initTheme(); // si définie
     updateEmailList();
     initOfflineMode();
     initVirtualAccounts();
@@ -2357,9 +2304,14 @@ document.addEventListener('DOMContentLoaded', () => {
     updateForecast();
     checkAuth();
     initFaqAccordion();
-    initCloudStorage();
+    if (typeof cloudStorage !== 'undefined' && cloudStorage.init) cloudStorage.init();
     initSettingsAccordion();
     updateUsersListPreview();
+    if (typeof initDatabase === 'function') initDatabase();
+    initWorker();
+    updateConnectionStatus();
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
 });
 
 window.onclick = function(event) {
