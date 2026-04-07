@@ -2100,9 +2100,7 @@ function suggestFeature() { const suggestion = prompt("Proposez une amélioratio
 
 // Initialisation FAQ Accordéon - Version simplifiée (sans génération dynamique)
 function initFaqAccordion() {
-    console.log("🚀 Initialisation FAQ (délégation d'événements)...");
-    // Utiliser la délégation d'événements sur le document
-    // pour fonctionner même quand la modal n'est pas encore ouverte
+    // Délégation d'événements — fonctionne même si la modal est ouverte plus tard
     document.addEventListener('click', function(e) {
         const question = e.target.closest('.faq-question');
         if (!question) return;
@@ -2110,14 +2108,10 @@ function initFaqAccordion() {
         e.stopPropagation();
         const item = question.closest('.faq-item');
         if (!item) return;
-        // Fermer tous les autres items du même parent
-        const siblings = item.closest('.faq-list')?.querySelectorAll('.faq-item') || [];
-        siblings.forEach(other => {
-            if (other !== item) other.classList.remove('active');
-        });
+        const siblings = item.closest('.faq-list') ? item.closest('.faq-list').querySelectorAll('.faq-item') : [];
+        siblings.forEach(function(other) { if (other !== item) other.classList.remove('active'); });
         item.classList.toggle('active');
     });
-    console.log("✅ FAQ initialisée via délégation d'événements");
 }
 function handleResponsiveCharts() {
     window.addEventListener('resize', () => { if (elecChart) elecChart.resize(); if (appliancesChart) appliancesChart.resize(); if (budgetChart) budgetChart.resize(); if (evolutionChart) evolutionChart.resize(); });
@@ -2332,7 +2326,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initConsumptionPreview();
     initEmailJS();
     initGoogleAPI();
-    // initTheme() supprimée - fonction non définie
+    // initTheme() supprimée — fonction non définie
     updateEmailList();
     initOfflineMode();
     initVirtualAccounts();
@@ -2795,33 +2789,27 @@ async function initCloudStorage() {
 // ========================================
 
 function initSettingsAccordion() {
-    console.log("🎯 Initialisation accordéon paramètres (délégation)...");
-    
     // Ouvrir la première section par défaut
-    const firstItem = document.querySelector('.settings-accordion-item');
-    if (firstItem) firstItem.classList.add('active');
-    
-    // Délégation d'événements sur le conteneur settings
+    var first = document.querySelector('.settings-accordion-item');
+    if (first) first.classList.add('active');
+
+    // Délégation d'événements — robuste, pas de doublons possibles
     document.addEventListener('click', function(e) {
-        const header = e.target.closest('.settings-accordion-header');
+        var header = e.target.closest('.settings-accordion-header');
         if (!header) return;
         e.preventDefault();
         e.stopPropagation();
-        const item = header.closest('.settings-accordion-item');
+        var item = header.closest('.settings-accordion-item');
         if (!item) return;
-        // Fermer tous les autres
-        document.querySelectorAll('.settings-accordion-item').forEach(other => {
-            if (other !== item) other.classList.remove('active');
+        var isOpen = item.classList.contains('active');
+        // Fermer tous les items
+        document.querySelectorAll('.settings-accordion-item').forEach(function(other) {
+            other.classList.remove('active');
         });
-        item.classList.toggle('active');
-        console.log("📁 Accordéon basculé:", item.classList.contains('active') ? 'ouvert' : 'fermé');
+        // Si l'item cliqué était fermé, l'ouvrir
+        if (!isOpen) item.classList.add('active');
     });
-    
-    console.log("✅ Accordéon paramètres initialisé");
 }
-
-// Appeler cette fonction dans le DOMContentLoaded
-// Ajoutez cette ligne : initSettingsAccordion();
 
 // ========================================
 // GESTION DES COMPTES UTILISATEURS - VERSION AMÉLIORÉE
@@ -3117,3 +3105,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 500);
 });
+
