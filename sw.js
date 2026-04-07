@@ -8,12 +8,14 @@ const CACHE_NAME = 'jirama-v1';
 
 // Liste des fichiers à mettre en cache
 const FILES_TO_CACHE = [
-    '/',
-    '/index.html',
-    '/style.css',
-    '/style.js',
-    '/manifest.json'
-    '/offline.html' 
+    './',
+    './index.html',
+    './style.css',
+    './script.js',
+    './database.js',
+    './cloud-storage.js',
+    './worker.js',
+    './offline.html'
 ];
 
 // ========================================
@@ -104,7 +106,7 @@ self.addEventListener('fetch', event => {
 // Dans la partie fetch, modifiez le catch
 .catch(() => {
     console.log('⚠️ [SW] Hors ligne, retour de la page d\'erreur');
-    return caches.match('/offline.html');
+    return caches.match('./offline.html');
 });
 });
 

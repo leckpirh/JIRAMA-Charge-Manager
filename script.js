@@ -898,10 +898,10 @@ function saveAppliance() {
     
     console.log(`📝 Sauvegarde appareil: ${name}, ID: ${id || 'nouveau'}`);
     const consumption = (power * hoursPerDay * daysPerMonth) / 1000;
-    const applianceData = { id: id ? parseInt(id) : Date.now(), name, power, hoursPerDay, daysPerMonth, type, personId, category, consumption };
+    const applianceData = { id: id ? parseFloat(id) : Date.now(), name, power, hoursPerDay, daysPerMonth, type, personId, category, consumption };
     
     if (id) {
-        const index = appliances.findIndex(a => a.id === parseInt(id));
+        const index = appliances.findIndex(a => String(a.id) === String(id));
         if (index !== -1) {
             appliances[index] = applianceData;
             showNotification('Appareil modifié avec succès', 'success');
@@ -951,7 +951,7 @@ function importDefaultAppliances() {
     ];
     defaultAppliances.forEach(app => {
         const consumption = (app.power * app.hoursPerDay * app.daysPerMonth) / 1000;
-        appliances.push({ id: Date.now() + Math.random(), ...app, consumption, personId: app.type === 'individual' && persons[0] ? persons[0].id : null });
+        appliances.push({ id: Date.now() + Math.floor(Math.random() * 1000), ...app, consumption, personId: app.type === 'individual' && persons[0] ? persons[0].id : null });
     });
     saveData();
     updateAppliancesList();
@@ -2100,40 +2100,24 @@ function suggestFeature() { const suggestion = prompt("Proposez une amélioratio
 
 // Initialisation FAQ Accordéon - Version simplifiée (sans génération dynamique)
 function initFaqAccordion() {
-    console.log("🚀 Initialisation FAQ...");
-    
-    const faqItems = document.querySelectorAll('.faq-item');
-    console.log(`✅ ${faqItems.length} FAQ trouvées dans le HTML`);
-    
-    if (faqItems.length === 0) {
-        console.warn("⚠️ Aucun élément .faq-item trouvé !");
-        return;
-    }
-    
-    faqItems.forEach((item) => {
-        const question = item.querySelector('.faq-question');
-        if (question) {
-            // Supprimer les anciens écouteurs pour éviter les doublons
-            const newQuestion = question.cloneNode(true);
-            question.parentNode.replaceChild(newQuestion, question);
-            
-            newQuestion.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Fermer tous les autres
-                document.querySelectorAll('.faq-item').forEach(other => {
-                    if (other !== item && other.classList.contains('active')) {
-                        other.classList.remove('active');
-                    }
-                });
-                
-                // Basculer l'état de l'élément courant
-                item.classList.toggle('active');
-                console.log(`FAQ ${item.classList.contains('active') ? 'ouverte' : 'fermée'}`);
-            });
-        }
+    console.log("🚀 Initialisation FAQ (délégation d'événements)...");
+    // Utiliser la délégation d'événements sur le document
+    // pour fonctionner même quand la modal n'est pas encore ouverte
+    document.addEventListener('click', function(e) {
+        const question = e.target.closest('.faq-question');
+        if (!question) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const item = question.closest('.faq-item');
+        if (!item) return;
+        // Fermer tous les autres items du même parent
+        const siblings = item.closest('.faq-list')?.querySelectorAll('.faq-item') || [];
+        siblings.forEach(other => {
+            if (other !== item) other.classList.remove('active');
+        });
+        item.classList.toggle('active');
     });
+    console.log("✅ FAQ initialisée via délégation d'événements");
 }
 function handleResponsiveCharts() {
     window.addEventListener('resize', () => { if (elecChart) elecChart.resize(); if (appliancesChart) appliancesChart.resize(); if (budgetChart) budgetChart.resize(); if (evolutionChart) evolutionChart.resize(); });
@@ -2348,7 +2332,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initConsumptionPreview();
     initEmailJS();
     initGoogleAPI();
-    initTheme();
+    // initTheme() supprimée - fonction non définie
     updateEmailList();
     initOfflineMode();
     initVirtualAccounts();
@@ -2811,40 +2795,29 @@ async function initCloudStorage() {
 // ========================================
 
 function initSettingsAccordion() {
-    const accordionItems = document.querySelectorAll('.settings-accordion-item');
-    
-    console.log(`🎯 Initialisation accordéon paramètres: ${accordionItems.length} éléments`);
-    
-    accordionItems.forEach((item, index) => {
-        const header = item.querySelector('.settings-accordion-header');
-        
-        if (header) {
-            // Supprimer les anciens écouteurs
-            const newHeader = header.cloneNode(true);
-            header.parentNode.replaceChild(newHeader, header);
-            
-            newHeader.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Fermer tous les autres
-                accordionItems.forEach(other => {
-                    if (other !== item && other.classList.contains('active')) {
-                        other.classList.remove('active');
-                    }
-                });
-                
-                // Basculer l'état de l'élément courant
-                item.classList.toggle('active');
-                console.log(`📁 Section ${index + 1} ${item.classList.contains('active') ? 'ouverte' : 'fermée'}`);
-            });
-        }
-    });
+    console.log("🎯 Initialisation accordéon paramètres (délégation)...");
     
     // Ouvrir la première section par défaut
-    if (accordionItems.length > 0 && !accordionItems[0].classList.contains('active')) {
-        accordionItems[0].classList.add('active');
-    }
+    const firstItem = document.querySelector('.settings-accordion-item');
+    if (firstItem) firstItem.classList.add('active');
+    
+    // Délégation d'événements sur le conteneur settings
+    document.addEventListener('click', function(e) {
+        const header = e.target.closest('.settings-accordion-header');
+        if (!header) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const item = header.closest('.settings-accordion-item');
+        if (!item) return;
+        // Fermer tous les autres
+        document.querySelectorAll('.settings-accordion-item').forEach(other => {
+            if (other !== item) other.classList.remove('active');
+        });
+        item.classList.toggle('active');
+        console.log("📁 Accordéon basculé:", item.classList.contains('active') ? 'ouvert' : 'fermé');
+    });
+    
+    console.log("✅ Accordéon paramètres initialisé");
 }
 
 // Appeler cette fonction dans le DOMContentLoaded
