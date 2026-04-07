@@ -5154,137 +5154,236 @@ a:not(.social-link):not(.footer-links a):hover {
 /* ACCORDÉON DES PARAMÈTRES */
 /* ======================================== */
 
+/* ================================================ */
+/* ACCORDION PARAMÈTRES - NOUVEAU STYLE TABS CARDS */
+/* ================================================ */
+
 .settings-accordion {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-}
-
-.settings-accordion-item {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
+    gap: 0;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
     overflow: hidden;
-    border: 1px solid rgba(0, 212, 255, 0.2);
-    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 212, 255, 0.15);
 }
 
-.settings-accordion-item:hover {
-    border-color: rgba(0, 212, 255, 0.5);
+/* Chaque item */
+.settings-accordion-item {
+    border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+    overflow: hidden;
+    transition: background 0.3s ease;
 }
 
+.settings-accordion-item:last-child {
+    border-bottom: none;
+}
+
+/* Barre colorée à gauche selon la section */
+.settings-accordion-item:nth-child(1) .settings-accordion-header { border-left: 4px solid #00d4ff; }
+.settings-accordion-item:nth-child(2) .settings-accordion-header { border-left: 4px solid #51cf66; }
+.settings-accordion-item:nth-child(3) .settings-accordion-header { border-left: 4px solid #ff922b; }
+.settings-accordion-item:nth-child(4) .settings-accordion-header { border-left: 4px solid #cc5de8; }
+.settings-accordion-item:nth-child(5) .settings-accordion-header { border-left: 4px solid #f06595; }
+
+/* Header */
 .settings-accordion-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 18px 24px;
+    gap: 16px;
+    padding: 20px 24px;
     cursor: pointer;
-    background: rgba(0, 212, 255, 0.05);
-    transition: background 0.2s;
+    background: transparent;
+    transition: background 0.25s ease, padding-left 0.25s ease;
+    position: relative;
+    user-select: none;
 }
 
 .settings-accordion-header:hover {
-    background: rgba(0, 212, 255, 0.1);
+    background: rgba(0, 212, 255, 0.06);
+    padding-left: 28px;
 }
 
+.settings-accordion-item.active .settings-accordion-header {
+    background: rgba(0, 212, 255, 0.08);
+    padding-left: 28px;
+}
+
+/* Icône ronde */
 .settings-accordion-header i:first-child {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-size: 17px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background: rgba(0, 212, 255, 0.12);
     color: #00d4ff;
-    font-size: 20px;
-    width: 28px;
 }
 
+.settings-accordion-item:nth-child(1) .settings-accordion-header i:first-child { background: rgba(0, 212, 255, 0.15); color: #00d4ff; }
+.settings-accordion-item:nth-child(2) .settings-accordion-header i:first-child { background: rgba(81, 207, 102, 0.15); color: #51cf66; }
+.settings-accordion-item:nth-child(3) .settings-accordion-header i:first-child { background: rgba(255, 146, 43, 0.15); color: #ff922b; }
+.settings-accordion-item:nth-child(4) .settings-accordion-header i:first-child { background: rgba(204, 93, 232, 0.15); color: #cc5de8; }
+.settings-accordion-item:nth-child(5) .settings-accordion-header i:first-child { background: rgba(240, 101, 149, 0.15); color: #f06595; }
+
+.settings-accordion-item.active .settings-accordion-header i:first-child {
+    transform: scale(1.12) rotate(-5deg);
+    box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+}
+
+.settings-accordion-item:nth-child(2).active .settings-accordion-header i:first-child { box-shadow: 0 4px 16px rgba(81, 207, 102, 0.3); }
+.settings-accordion-item:nth-child(3).active .settings-accordion-header i:first-child { box-shadow: 0 4px 16px rgba(255, 146, 43, 0.3); }
+.settings-accordion-item:nth-child(4).active .settings-accordion-header i:first-child { box-shadow: 0 4px 16px rgba(204, 93, 232, 0.3); }
+.settings-accordion-item:nth-child(5).active .settings-accordion-header i:first-child { box-shadow: 0 4px 16px rgba(240, 101, 149, 0.3); }
+
+/* Titre */
 .settings-accordion-header span {
     flex: 1;
     font-weight: 600;
     color: white;
-    font-size: 16px;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+    transition: color 0.25s;
 }
 
-.settings-accordion-header i:last-child {
+.settings-accordion-item.active .settings-accordion-header span {
     color: #00d4ff;
-    transition: transform 0.3s ease;
-    font-size: 14px;
+}
+
+.settings-accordion-item:nth-child(2).active .settings-accordion-header span { color: #51cf66; }
+.settings-accordion-item:nth-child(3).active .settings-accordion-header span { color: #ff922b; }
+.settings-accordion-item:nth-child(4).active .settings-accordion-header span { color: #cc5de8; }
+.settings-accordion-item:nth-child(5).active .settings-accordion-header span { color: #f06595; }
+
+/* Chevron animé */
+.settings-accordion-header i:last-child {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 12px;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                background 0.25s ease,
+                color 0.25s ease;
 }
 
 .settings-accordion-item.active .settings-accordion-header i:last-child {
     transform: rotate(180deg);
+    background: rgba(0, 212, 255, 0.15);
+    color: #00d4ff;
 }
 
+.settings-accordion-item:nth-child(2).active .settings-accordion-header i:last-child { background: rgba(81,207,102,0.15); color: #51cf66; }
+.settings-accordion-item:nth-child(3).active .settings-accordion-header i:last-child { background: rgba(255,146,43,0.15); color: #ff922b; }
+.settings-accordion-item:nth-child(4).active .settings-accordion-header i:last-child { background: rgba(204,93,232,0.15); color: #cc5de8; }
+.settings-accordion-item:nth-child(5).active .settings-accordion-header i:last-child { background: rgba(240,101,149,0.15); color: #f06595; }
+
+/* ---- ANIMATION CONTENU : grid-template-rows ---- */
 .settings-accordion-content {
-    display: none;
-    padding: 20px 24px;
-    border-top: 1px solid rgba(0, 212, 255, 0.2);
-    background: rgba(0, 0, 0, 0.2);
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.35s ease;
+    opacity: 0;
+    border-top: 0px solid transparent;
 }
 
 .settings-accordion-item.active .settings-accordion-content {
-    display: block;
-    animation: slideDown 0.3s ease;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    border-top: 1px solid rgba(0, 212, 255, 0.1);
+}
+
+/* Wrapper interne obligatoire pour grid trick */
+.settings-accordion-content > * {
+    overflow: hidden;
+}
+
+/* Padding interne du contenu */
+.settings-accordion-content .settings-grid-accordion,
+.settings-accordion-content .settings-single-card {
+    padding: 24px;
 }
 
 /* Grille pour les cartes dans l'accordéon */
 .settings-grid-accordion {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
     gap: 20px;
 }
 
 .settings-single-card {
-    max-width: 500px;
+    max-width: 520px;
     margin: 0 auto;
-}
-
-/* Animation */
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    width: 100%;
 }
 
 /* Info message */
 .info-message {
-    background: rgba(0, 212, 255, 0.1);
+    background: rgba(0, 212, 255, 0.08);
     border-radius: 10px;
     padding: 12px;
     margin-top: 15px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
+    border: 1px solid rgba(0, 212, 255, 0.15);
 }
 
 .info-message i {
     color: #00d4ff;
-    font-size: 16px;
+    font-size: 15px;
+    margin-top: 1px;
 }
 
 .info-message small {
-    color: rgba(255, 255, 255, 0.7);
-    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.65);
+    line-height: 1.5;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
     .settings-accordion-header {
-        padding: 14px 18px;
+        padding: 16px 18px;
+        gap: 12px;
     }
-    
+
+    .settings-accordion-header:hover,
+    .settings-accordion-item.active .settings-accordion-header {
+        padding-left: 20px;
+    }
+
+    .settings-accordion-header i:first-child {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+        font-size: 15px;
+        border-radius: 10px;
+    }
+
     .settings-accordion-header span {
         font-size: 14px;
     }
-    
-    .settings-accordion-content {
-        padding: 15px;
+
+    .settings-accordion-content .settings-grid-accordion,
+    .settings-accordion-content .settings-single-card {
+        padding: 16px;
     }
-    
+
     .settings-grid-accordion {
         grid-template-columns: 1fr;
-        gap: 15px;
+        gap: 14px;
     }
-    
+
     .settings-single-card {
         max-width: 100%;
     }
@@ -5292,16 +5391,26 @@ a:not(.social-link):not(.footer-links a):hover {
 
 @media (max-width: 480px) {
     .settings-accordion-header {
-        padding: 12px 15px;
+        padding: 14px 14px;
     }
-    
+
     .settings-accordion-header i:first-child {
-        font-size: 18px;
-        width: 24px;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        font-size: 13px;
+        border-radius: 8px;
     }
-    
+
     .settings-accordion-header span {
         font-size: 13px;
+    }
+
+    .settings-accordion-header i:last-child {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        font-size: 11px;
     }
 }
 
