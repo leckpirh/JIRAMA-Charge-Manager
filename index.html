@@ -3,20 +3,20 @@
 
   <head>
     <meta charset="UTF-8">
-    <title>JIRAMA Charge Manager - Gestion intelligente des charges</title>
+    <title>Test Fin de JIRAMA Charge Manager</title>
     <link rel="stylesheet" href="./style.css">
 
   </head>
     
   <body>
-    
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
     <title>JIRAMA Charge Manager - Gestion intelligente des charges</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -26,18 +26,18 @@
     <!-- Google API -->
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- Manifest et thème -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00d4ff">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="JIRAMA CM">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Ajoutez dans la section <head> -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00d4ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JIRAMA CM">
 </head>
 <body>
     <div class="stars"></div>
     <div class="twinkling"></div>
-
+    
     <div class="container">
         <!-- Header Premium avec Logo JIRAMA -->
         <header class="premium-header">
@@ -729,13 +729,10 @@
 </div>
 
     <input type="file" id="importFile" accept=".json" style="display: none;">    
-        <!-- Scripts externes -->
-    <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
-    <script src="cloud-storage.js"></script>
-    <script src="worker.js"></script>
-    <script src="database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="script.js"></script>
-    <script>
+<script>
 // ========================================
 // ENREGISTREMENT DU SERVICE WORKER
 // ========================================
@@ -807,10 +804,14 @@ function showNotification(message, type) {
     }
 }
 </script>
+  <!-- Ajouter après les autres scripts -->
+<script src="cloud-storage.js"></script>
   <!-- Indicateur de connexion -->
 <div id="connectionStatus" class="connection-status"></div>
-  </body>
+</body>
 </html>
     <script type="module" src="./script.js"></script>
+
   </body>
+  
 </html>
