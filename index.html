@@ -237,7 +237,7 @@
                 <i class="fas fa-chevron-down"></i>
             </div>
             <div class="settings-accordion-content">
-                <div class="settings-grid-accordion">
+                <div class="settings-grid-accordion jcm-grid">
                     <!-- Facture Électricité JIRAMA -->
                     <div class="settings-card">
                         <div class="card-header">
@@ -471,10 +471,10 @@
                                 <option value="7">7 jours avant</option>
                             </select>
                         </div>
-                        <div class="info-message">
-                            <i class="fas fa-info-circle"></i>
-                            <small>Les rappels seront envoyés par email aux colocataires ayant un email renseigné</small>
-                        </div>
+                    </div>
+                    <div class="acc-info-note">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Les rappels seront envoyés par email aux colocataires ayant un email renseigné.</span>
                     </div>
                 </div>
             </div>
@@ -521,7 +521,10 @@
                                 <i class="fas fa-cloud-download-alt"></i> Restaurer
                             </button>
                         </div>
-                        <small><i class="fas fa-info-circle"></i> Les données sont sauvegardées dans votre espace Google Drive personnel</small>
+                    </div>
+                    <div class="acc-info-note">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Les données sont sauvegardées dans votre espace Google Drive personnel.</span>
                     </div>
                 </div>
             </div>
@@ -548,10 +551,10 @@
                 <button class="btn-glow" onclick="showUsersManagement()" style="width: 100%; margin-top: 5px;">
                     <i class="fas fa-user-plus"></i> Gérer les comptes
                 </button>
-                <div class="info-message" style="margin-top: 15px;">
-                    <i class="fas fa-info-circle"></i>
-                    <small>Chaque colocataire peut avoir son propre compte. Les mots de passe par défaut sont "jirama123".</small>
-                </div>
+            </div>
+            <div class="acc-info-note">
+                <i class="fas fa-info-circle"></i>
+                <span>Chaque colocataire peut avoir son propre compte. Mot de passe par défaut&nbsp;: <strong>jirama123</strong></span>
             </div>
         </div>
     </div>
@@ -572,34 +575,91 @@
                 <div class="footer-section"><div class="footer-logo"><svg class="jirama-logo-small" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" width="30" height="30"><circle cx="25" cy="25" r="22" fill="white" stroke="#00d4ff" stroke-width="1.5"/><path d="M25 10 L25 40 M17.5 17.5 L32.5 17.5 M17.5 32.5 L32.5 32.5" stroke="#00d4ff" stroke-width="2" stroke-linecap="round"/><path d="M15 25 L35 25" stroke="#00d4ff" stroke-width="2" stroke-linecap="round"/><circle cx="25" cy="25" r="4" fill="#00d4ff"/></svg><h3>JIRAMA Charge Manager</h3></div><p>Solution intelligente pour la gestion des charges d'électricité et d'eau à Madagascar.</p><div class="social-links"><a href="https://www.facebook.com/jiramaofisialy" target="_blank" class="social-link"><i class="fab fa-facebook-f"></i></a><a href="https://twitter.com/jirama_mg" target="_blank" class="social-link"><i class="fab fa-twitter"></i></a><a href="https://www.instagram.com/jirama_madagascar" target="_blank" class="social-link"><i class="fab fa-instagram"></i></a><a href="https://www.linkedin.com/company/jiramaofisialy/" target="_blank" class="social-link"><i class="fab fa-linkedin-in"></i></a><a href="https://github.com/jirama" target="_blank" class="social-link"><i class="fab fa-github"></i></a></div></div>
                 <div class="footer-section"><h4>Navigation</h4><ul><li><a href="#" onclick="switchTab('dashboard'); return false;"><i class="fas fa-chart-line"></i> Dashboard</a></li><li><a href="#" onclick="switchTab('persons'); return false;"><i class="fas fa-users"></i> Colocataires</a></li><li><a href="#" onclick="switchTab('appliances'); return false;"><i class="fas fa-plug"></i> Appareils</a></li><li><a href="#" onclick="switchTab('billing'); return false;"><i class="fas fa-file-invoice"></i> Facturation</a></li><li><a href="#" onclick="switchTab('settings'); return false;"><i class="fas fa-cog"></i> Paramètres</a></li></ul></div>
                 <div class="footer-section"><h4>Ressources</h4><ul><li><a href="#" onclick="showGuide()"><i class="fas fa-question-circle"></i> Guide d'utilisation</a></li><li><a href="#" onclick="showDocumentation()"><i class="fas fa-file-alt"></i> Documentation technique</a></li><li><a href="#" onclick="showSupport()"><i class="fas fa-life-ring"></i> Support technique</a></li><li><a href="#" onclick="reportBug()"><i class="fas fa-bug"></i> Signaler un bug</a></li><li><a href="#" onclick="suggestFeature()"><i class="fas fa-star"></i> Proposer une amélioration</a></li><li><a href="#" onclick="showFAQ()"><i class="fas fa-question"></i> FAQ</a></li><li><a href="#" onclick="showTarifs()"><i class="fas fa-charging-station"></i> Tarifs JIRAMA</a></li></ul></div>
-                <div class="footer-section"><h4>Contact officiel</h4><ul><li><i class="fas fa-map-marker-alt"></i> JIRAMA - Antananarivo, Madagascar</li><li><i class="fas fa-phone"></i> +261 34 30 000 30</li><li><i class="fas fa-envelope"></i> <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="1f6c6a6f6f706d6b5f75766d7e727e317278">[email&#160;protected]</a></li><li><i class="fas fa-clock"></i> Lun-Ven: 8h-17h | Sam: 8h-12h</li><li><i class="fas fa-globe"></i> www.jirama.mg</li></ul><div class="app-badges"><span class="badge" onclick="showMobileApp()"><i class="fab fa-android"></i> Android App</span><span class="badge" onclick="showMobileApp()"><i class="fab fa-apple"></i> iOS App</span><span class="badge" onclick="showWebApp()"><i class="fas fa-globe"></i> Web App</span><span class="badge" onclick="showAPI()"><i class="fas fa-code"></i> API</span></div></div>
+                <div class="footer-section"><h4>Contact officiel</h4><ul><li><i class="fas fa-map-marker-alt"></i> JIRAMA - Antananarivo, Madagascar</li><li><i class="fas fa-phone"></i> +261 34 30 000 30</li><li><i class="fas fa-envelope"></i> <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="34474144445b4640745e5d465559551a5953">[email&#160;protected]</a></li><li><i class="fas fa-clock"></i> Lun-Ven: 8h-17h | Sam: 8h-12h</li><li><i class="fas fa-globe"></i> www.jirama.mg</li></ul><div class="app-badges"><span class="badge" onclick="showMobileApp()"><i class="fab fa-android"></i> Android App</span><span class="badge" onclick="showMobileApp()"><i class="fab fa-apple"></i> iOS App</span><span class="badge" onclick="showWebApp()"><i class="fas fa-globe"></i> Web App</span><span class="badge" onclick="showAPI()"><i class="fas fa-code"></i> API</span></div></div>
             </div>
             <div class="footer-bottom"><p>&copy; 2026 JIRAMA Charge Manager - Version 3.0 | Made with <i class="fas fa-heart"></i> pour Madagascar</p><div class="footer-links"><a href="#" onclick="showLegal()">Mentions légales</a><a href="#" onclick="showPrivacy()">Confidentialité</a><a href="#" onclick="showTerms()">CGU</a><a href="#" onclick="showCookies()">Cookies</a><a href="#" onclick="showAccessibility()">Accessibilité</a></div></div>
         </footer>
     </div>
 
-   <!-- Login Modal avec multi-utilisateurs -->
-<div id="loginModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3><i class="fas fa-lock"></i> Connexion</h3>
-            <span class="close" id="closeLoginBtn">&times;</span>
+   <!-- Login Modal redesigné -->
+<div id="loginModal" class="modal login-modal-overlay">
+    <div class="login-modal-card">
+        <!-- Logo + titre -->
+        <div class="login-modal-hero">
+            <div class="login-logo-ring">
+                <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+                    <circle cx="30" cy="30" r="28" fill="white" stroke="#00d4ff" stroke-width="2"/>
+                    <path d="M30 12 L30 48 M20 21 L40 21 M20 39 L40 39" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M16 30 L44 30" stroke="#00d4ff" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="30" cy="30" r="5" fill="#00d4ff"/>
+                </svg>
+            </div>
+            <h2 class="login-modal-title">JIRAMA Charge Manager</h2>
+            <p class="login-modal-sub">Gérez vos charges en toute simplicité</p>
         </div>
-        <div class="modal-body">
-            <div class="form-group">
-                <label>Nom d'utilisateur</label>
-                <input type="text" id="loginUsername" class="premium-input" placeholder="admin">
+
+        <!-- Tabs connexion / invité -->
+        <div class="login-tabs">
+            <button class="login-tab active" id="tabLogin" onclick="switchLoginTab('login')">
+                <i class="fas fa-sign-in-alt"></i> Connexion
+            </button>
+            <button class="login-tab" id="tabGuest" onclick="switchLoginTab('guest')">
+                <i class="fas fa-user-secret"></i> Mode Invité
+            </button>
+        </div>
+
+        <!-- Panneau Connexion -->
+        <div class="login-panel" id="panelLogin">
+            <div class="login-form-group">
+                <label><i class="fas fa-user"></i> Nom d'utilisateur ou email</label>
+                <input type="text" id="loginUsername" class="login-input" placeholder="admin" autocomplete="username">
             </div>
-            <div class="form-group">
-                <label>Mot de passe</label>
-                <input type="password" id="loginPassword" class="premium-input" placeholder="••••••">
+            <div class="login-form-group">
+                <label><i class="fas fa-lock"></i> Mot de passe</label>
+                <div class="login-pass-wrap">
+                    <input type="password" id="loginPassword" class="login-input" placeholder="••••••" autocomplete="current-password">
+                    <button type="button" class="login-eye" onclick="toggleLoginPass()"><i class="fas fa-eye" id="eyeIcon"></i></button>
+                </div>
             </div>
-            <button id="submitLogin" class="btn-glow" style="width: 100%;"><i class="fas fa-sign-in-alt"></i> Se connecter</button>
-            <div style="margin-top: 15px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.5);">
-                <p>Comptes de démonstration :</p>
-                <p>rakoto / rakoto123 (Utilisateur)</p>
-                <p>raso / raso123 (Utilisateur)</p>
+            <div id="loginError" class="login-error" style="display:none">
+                <i class="fas fa-exclamation-circle"></i> <span id="loginErrorMsg">Identifiants incorrects</span>
             </div>
+            <button id="submitLogin" class="login-btn-primary" onclick="login()">
+                <i class="fas fa-sign-in-alt"></i> Se connecter
+            </button>
+            <div class="login-demo-accounts">
+                <span class="login-demo-label">Comptes de démonstration</span>
+                <div class="login-demo-list">
+                    <button class="login-demo-chip" onclick="fillDemo('admin','admin123')">
+                        <i class="fas fa-shield-alt"></i> admin
+                    </button>
+                    <button class="login-demo-chip" onclick="fillDemo('rakoto','rakoto123')">
+                        <i class="fas fa-user"></i> rakoto
+                    </button>
+                    <button class="login-demo-chip" onclick="fillDemo('raso','raso123')">
+                        <i class="fas fa-user"></i> raso
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panneau Invité -->
+        <div class="login-panel" id="panelGuest" style="display:none">
+            <div class="login-guest-info">
+                <div class="login-guest-icon"><i class="fas fa-user-secret"></i></div>
+                <h4>Mode Invité</h4>
+                <p>Explorez l'application sans compte. Vos données seront stockées localement mais non synchronisées.</p>
+                <ul class="login-guest-features">
+                    <li><i class="fas fa-check"></i> Accès au dashboard et aux calculs</li>
+                    <li><i class="fas fa-check"></i> Ajout de colocataires et appareils</li>
+                    <li><i class="fas fa-check"></i> Génération de factures PDF</li>
+                    <li><i class="fas fa-times" style="color:#ff6b6b"></i> Synchronisation cloud désactivée</li>
+                    <li><i class="fas fa-times" style="color:#ff6b6b"></i> Envoi d'emails désactivé</li>
+                </ul>
+            </div>
+            <button class="login-btn-guest" onclick="loginAsGuest()">
+                <i class="fas fa-play"></i> Continuer en invité
+            </button>
         </div>
     </div>
 </div>
@@ -623,10 +683,85 @@
     <div id="budgetModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-chart-line"></i> Simulateur de budget</h3><span class="close" onclick="closeBudgetModal()">&times;</span></div><div id="budgetSimulator"></div></div></div>
 
     <!-- Guide Modal -->
-    <div id="guideModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-book-open"></i> Guide d'utilisation</h3><span class="close" onclick="closeGuideModal()">&times;</span></div><div class="modal-body"><div class="guide-steps"><div class="guide-step"><div class="step-number">1</div><div class="step-content"><h4>Ajouter des colocataires</h4><p>Allez dans l'onglet "Colocataires" et cliquez sur "Ajouter un colocataire". Renseignez son nom, email, téléphone et son coefficient de présence.</p></div></div><div class="guide-step"><div class="step-number">2</div><div class="step-content"><h4>Ajouter des appareils électriques</h4><p>Dans l'onglet "Appareils", ajoutez chaque appareil avec sa puissance, ses heures d'utilisation et le nombre de jours par mois.</p></div></div><div class="guide-step"><div class="step-number">3</div><div class="step-content"><h4>Saisir les factures JIRAMA</h4><p>Allez dans "Paramètres" et entrez le montant de vos factures d'électricité et d'eau.</p></div></div><div class="guide-step"><div class="step-number">4</div><div class="step-content"><h4> Visualiser la facturation</h4><p>L'onglet "Facturation" calcule automatiquement la répartition des charges entre tous les colocataires.</p></div></div><div class="guide-step"><div class="step-number">5</div><div class="step-content"><h4> Générer une facture PDF</h4><p>Cliquez sur "Générer PDF" pour obtenir une facture officielle au format PDF.</p></div></div></div><div class="guide-tip"><i class="fas fa-lightbulb"></i><div><strong>Astuce :</strong> Utilisez le coefficient de présence pour ajuster la part des colocataires absents pendant une partie du mois !</div></div></div></div></div>
+    <div id="guideModal" class="modal">
+    <div class="modal-content guide-modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-book-open"></i> Guide d'utilisation</h3>
+            <span class="close" onclick="closeGuideModal()">&times;</span>
+        </div>
+        <div class="modal-body guide-body">
+            <p class="guide-intro">Suivez ces étapes pour bien démarrer avec JIRAMA Charge Manager.</p>
+            <div class="guide-steps">
+                <div class="guide-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4><i class="fas fa-users"></i> Ajouter des colocataires</h4>
+                        <p>Allez dans l'onglet <strong>Colocataires</strong> et cliquez sur <em>Ajouter un colocataire</em>. Renseignez son nom, email, téléphone et son coefficient de présence (1 = présent tout le mois).</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4><i class="fas fa-plug"></i> Ajouter des appareils électriques</h4>
+                        <p>Dans l'onglet <strong>Appareils</strong>, ajoutez chaque appareil avec sa puissance (W), ses heures d'utilisation par jour et le nombre de jours par mois. Indiquez s'il est individuel ou partagé.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4><i class="fas fa-file-invoice"></i> Saisir les factures JIRAMA</h4>
+                        <p>Dans <strong>Paramètres → JCM Calculate</strong>, entrez le montant total de vos factures d'électricité et d'eau ainsi que les consommations. Le prix moyen par kWh et par m³ sera calculé automatiquement.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h4><i class="fas fa-chart-bar"></i> Visualiser la facturation</h4>
+                        <p>L'onglet <strong>Facturation</strong> calcule automatiquement la répartition des charges entre tous les colocataires selon leur coefficient de présence et leurs appareils.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h4><i class="fas fa-file-pdf"></i> Générer une facture PDF</h4>
+                        <p>Dans l'onglet <strong>Facturation</strong>, cliquez sur <em>Générer PDF</em> pour obtenir une facture professionnelle téléchargeable. Vous pouvez aussi partager via WhatsApp ou copier dans le presse-papier.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">6</div>
+                    <div class="step-content">
+                        <h4><i class="fas fa-history"></i> Suivre l'historique</h4>
+                        <p>L'onglet <strong>Historique</strong> conserve toutes les factures générées et les paiements enregistrés. Marquez les paiements comme reçus directement dans l'onglet Facturation.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">7</div>
+                    <div class="step-content">
+                        <h4><i class="fas fa-cloud-upload-alt"></i> Sauvegarder vos données</h4>
+                        <p>Utilisez <strong>Paramètres → Cloud Backup</strong> pour connecter votre Google Drive et sauvegarder automatiquement. Vous pouvez aussi exporter en JSON ou Excel depuis le Dashboard.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">8</div>
+                    <div class="step-content">
+                        <h4><i class="fas fa-camera"></i> Scanner une facture</h4>
+                        <p>Cliquez sur <em>Scanner facture</em> dans le Dashboard pour importer automatiquement les montants depuis une photo de votre facture JIRAMA.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="guide-tips-section">
+                <h4 class="guide-tips-title"><i class="fas fa-lightbulb"></i> Astuces</h4>
+                <div class="guide-tip"><i class="fas fa-check-circle"></i><span>Le <strong>coefficient de présence</strong> permet d'ajuster la part de chaque colocataire absent pendant une partie du mois (ex: 0.5 = 15 jours présent).</span></div>
+                <div class="guide-tip"><i class="fas fa-check-circle"></i><span>Les <strong>appareils partagés</strong> (frigo, TV) sont automatiquement répartis entre tous selon leur coefficient.</span></div>
+                <div class="guide-tip"><i class="fas fa-check-circle"></i><span>Activez les <strong>tranches tarifaires personnalisées</strong> pour utiliser les tarifs exacts de votre contrat JIRAMA.</span></div>
+                <div class="guide-tip"><i class="fas fa-check-circle"></i><span>Le <strong>mode invité</strong> permet d'explorer l'application sans créer de compte.</span></div>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Support Modal -->
-    <div id="supportModal" class="modal"><div class="modal-content support-modal"><div class="modal-header"><h3><i class="fas fa-headset"></i> Support technique JIRAMA</h3><span class="close" onclick="closeSupportModal()">&times;</span></div><div class="modal-body support-body"><div class="support-hero"><div class="support-icon"><i class="fas fa-phone-alt"></i></div><div class="support-info"><h4>Besoin d'aide ?</h4><p>Notre équipe est à votre disposition pour vous assister</p></div></div><div class="support-cards"><div class="support-card"><div class="card-icon"><i class="fas fa-phone-volume"></i></div><div class="card-content"><h4>Hotline JIRAMA</h4><p class="phone-number">134</p><p class="small">Gratuit - Urgence 24h/24</p></div></div><div class="support-card"><div class="card-icon"><i class="fas fa-envelope"></i></div><div class="card-content"><h4>Support par email</h4><p class="email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7c0f090c0c130e083c16150e1d111d52111b">[email&#160;protected]</a></p><p class="small">Réponse sous 24h</p></div></div><div class="support-card"><div class="card-icon"><i class="fas fa-clock"></i></div><div class="card-content"><h4>Horaires d'ouverture</h4><p>Lundi - Vendredi</p><p class="hours">8h00 - 17h00</p></div></div></div><div class="agencies-section"><h4><i class="fas fa-building"></i> Agences JIRAMA</h4><div class="agencies-grid"><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Antananarivo</strong><span>34, Rue Ravoninahitriniarivo</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Toamasina</strong><span>Boulevard de la Réunion</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Mahajanga</strong><span>Avenue de France</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Antsiranana</strong><span>Rue Colbert</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Fianarantsoa</strong><span>Avenue de l'Indépendance</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Toliara</strong><span>Boulevard Gallieni</span></div></div></div></div><div class="emergency-box"><div class="emergency-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="emergency-content"><strong>URGENCE 24h/24</strong><p>Pour toute panne d'électricité ou d'eau, contactez le service d'urgence :</p><div class="emergency-number"><i class="fas fa-phone"></i> <span>134</span> (appel gratuit)</div></div></div><div class="quick-contact"><h4><i class="fas fa-paper-plane"></i> Nous écrire rapidement</h4><form id="quickSupportForm" onsubmit="sendQuickMessage(event)"><div class="form-row"><input type="text" placeholder="Votre nom" class="premium-input" required><input type="email" placeholder="Votre email" class="premium-input" required></div><textarea placeholder="Votre message..." rows="3" class="premium-input" required></textarea><button type="submit" class="btn-glow"><i class="fas fa-paper-plane"></i> Envoyer</button></form><p class="form-note"><i class="fas fa-lock"></i> Vos données sont confidentielles</p></div></div></div></div>
+    <div id="supportModal" class="modal"><div class="modal-content support-modal"><div class="modal-header"><h3><i class="fas fa-headset"></i> Support technique JIRAMA</h3><span class="close" onclick="closeSupportModal()">&times;</span></div><div class="modal-body support-body"><div class="support-hero"><div class="support-icon"><i class="fas fa-phone-alt"></i></div><div class="support-info"><h4>Besoin d'aide ?</h4><p>Notre équipe est à votre disposition pour vous assister</p></div></div><div class="support-cards"><div class="support-card"><div class="card-icon"><i class="fas fa-phone-volume"></i></div><div class="card-content"><h4>Hotline JIRAMA</h4><p class="phone-number">134</p><p class="small">Gratuit - Urgence 24h/24</p></div></div><div class="support-card"><div class="card-icon"><i class="fas fa-envelope"></i></div><div class="card-content"><h4>Support par email</h4><p class="email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a8dbddd8d8c7dadce8c2c1dac9c5c986c5cf">[email&#160;protected]</a></p><p class="small">Réponse sous 24h</p></div></div><div class="support-card"><div class="card-icon"><i class="fas fa-clock"></i></div><div class="card-content"><h4>Horaires d'ouverture</h4><p>Lundi - Vendredi</p><p class="hours">8h00 - 17h00</p></div></div></div><div class="agencies-section"><h4><i class="fas fa-building"></i> Agences JIRAMA</h4><div class="agencies-grid"><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Antananarivo</strong><span>34, Rue Ravoninahitriniarivo</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Toamasina</strong><span>Boulevard de la Réunion</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Mahajanga</strong><span>Avenue de France</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Antsiranana</strong><span>Rue Colbert</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Fianarantsoa</strong><span>Avenue de l'Indépendance</span></div></div><div class="agency-card"><i class="fas fa-map-marker-alt"></i><div><strong>Toliara</strong><span>Boulevard Gallieni</span></div></div></div></div><div class="emergency-box"><div class="emergency-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="emergency-content"><strong>URGENCE 24h/24</strong><p>Pour toute panne d'électricité ou d'eau, contactez le service d'urgence :</p><div class="emergency-number"><i class="fas fa-phone"></i> <span>134</span> (appel gratuit)</div></div></div><div class="quick-contact"><h4><i class="fas fa-paper-plane"></i> Nous écrire rapidement</h4><form id="quickSupportForm" onsubmit="sendQuickMessage(event)"><div class="form-row"><input type="text" placeholder="Votre nom" class="premium-input" required><input type="email" placeholder="Votre email" class="premium-input" required></div><textarea placeholder="Votre message..." rows="3" class="premium-input" required></textarea><button type="submit" class="btn-glow"><i class="fas fa-paper-plane"></i> Envoyer</button></form><p class="form-note"><i class="fas fa-lock"></i> Vos données sont confidentielles</p></div></div></div></div>
 
     <!-- Tarifs Modal -->
     <div id="tarifsModal" class="modal"><div class="modal-content tarifs-modal"><div class="modal-header"><h3><i class="fas fa-charging-station"></i> Tarifs JIRAMA</h3><span class="close" onclick="closeTarifsModal()">&times;</span></div><div class="modal-body tarifs-body"><div class="tarifs-container"><div class="tarif-card elec-card"><div class="tarif-header"><i class="fas fa-bolt"></i><h4>Électricité</h4></div><div class="tarif-content"><div class="tarif-range"><span class="range-label">0 - 50 kWh</span><span class="range-price">450 Ar/kWh</span></div><div class="tarif-range"><span class="range-label">51 - 150 kWh</span><span class="range-price">550 Ar/kWh</span></div><div class="tarif-range"><span class="range-label">151 - 300 kWh</span><span class="range-price">650 Ar/kWh</span></div><div class="tarif-range"><span class="range-label">301+ kWh</span><span class="range-price">750 Ar/kWh</span></div></div></div><div class="tarif-card water-card"><div class="tarif-header"><i class="fas fa-tint"></i><h4>Eau</h4></div><div class="tarif-content"><div class="tarif-range"><span class="range-label">0 - 10 m³</span><span class="range-price">2 000 Ar/m³</span></div><div class="tarif-range"><span class="range-label">11 - 25 m³</span><span class="range-price">2 500 Ar/m³</span></div><div class="tarif-range"><span class="range-label">26 - 50 m³</span><span class="range-price">3 000 Ar/m³</span></div><div class="tarif-range"><span class="range-label">51+ m³</span><span class="range-price">3 500 Ar/m³</span></div></div></div></div><div class="tarif-note"><i class="fas fa-info-circle"></i><p>Les tarifs sont donnés à titre indicatif et peuvent varier selon les zones. Consultez votre facture JIRAMA pour les tarifs exacts.</p></div></div></div></div>
