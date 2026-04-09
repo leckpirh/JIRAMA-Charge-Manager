@@ -951,7 +951,7 @@ function importDefaultAppliances() {
     ];
     defaultAppliances.forEach(app => {
         const consumption = (app.power * app.hoursPerDay * app.daysPerMonth) / 1000;
-        appliances.push({ id: Date.now() + Math.floor(Math.random() * 1000), ...app, consumption, personId: app.type === 'individual' && persons[0] ? persons[0].id : null });
+        appliances.push({ id: Date.now() + Math.random(), ...app, consumption, personId: app.type === 'individual' && persons[0] ? persons[0].id : null });
     });
     saveData();
     updateAppliancesList();
@@ -1690,55 +1690,6 @@ function syncToCloud() {
         else throw new Error(result.error?.message || 'Erreur lors de la sauvegarde');
     }).catch(error => { console.error('Erreur de sauvegarde:', error); showNotification('Erreur lors de la sauvegarde cloud', 'error'); });
 }
-function restoreFromCloud() {
-    if (!gapiAccessToken) { showNotification('Veuillez vous connecter à Google Drive d\'abord', 'info'); signInToDrive(); return; }
-    if (!confirm('⚠️ Cette action remplacera toutes vos données actuelles. Continuer ?')) return;
-    showNotification('Recherche des sauvegardes...', 'info');
-    fetch('https://www.googleapis.com/drive/v3/files?q=name contains \'jirama_backup\'&orderBy=createdTime desc&pageSize=10', { headers: { 'Authorization': `Bearer ${gapiAccessToken}` } }).then(response => response.json()).then(async result => {
-        if (result.files && result.files.length > 0) {
-            const backupList = result.files.map((f, i) => `${i + 1}. ${f.name} (${new Date(f.createdTime).toLocaleString()})`).join('\n');
-            const choice = prompt(`Choisissez une sauvegarde à restaurer :\n\n${backupList}\n\nEntrez le numéro (1-${result.files.length}) :`, '1');
-            const selectedIndex = parseInt(choice) - 1;
-            if (selectedIndex >= 0 && selectedIndex < result.files.length) {
-                const selectedBackup = result.files[selectedIndex];
-                const fileResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${selectedBackup.id}?alt=media`, { headers: { 'Authorization': `Bearer ${gapiAccessToken}` } });
-                const fileContent = await fileResponse.text();
-                const importedData = JSON.parse(fileContent);
-                persons = importedData.persons || [];
-                appliances = importedData.appliances || [];
-                commonExpenses = importedData.commonExpenses || [];
-                evolutionData = importedData.evolutionData || [];
-                guests = importedData.guests || [];
-                virtualAccounts = importedData.virtualAccounts || {};
-                history = importedData.history || [];
-                if (importedData.settings) {
-                    elecBillAmount = importedData.settings.elecBillAmount || 0;
-                    waterBillAmount = importedData.settings.waterBillAmount || 0;
-                    elecConsumption = importedData.settings.elecConsumption || 0;
-                    waterConsumption = importedData.settings.waterConsumption || 0;
-                    elecMethod = importedData.settings.elecMethod || 'basedOnBill';
-                    waterMethod = importedData.settings.waterMethod || 'equitable';
-                    elecTranchesEnabled = importedData.settings.elecTranchesEnabled || false;
-                    waterTranchesEnabled = importedData.settings.waterTranchesEnabled || false;
-                    electricityTranches = importedData.settings.electricityTranches || [];
-                    waterTranches = importedData.settings.waterTranches || [];
-                }
-                saveData();
-                updatePersonsList();
-                updateAppliancesList();
-                updateDashboard();
-                updateBilling();
-                updateHistory();
-                updateExpensesList();
-                updateEvolutionChart();
-                updateWidgets();
-                loadSettings();
-                showNotification(`Données restaurées depuis ${selectedBackup.name}`, 'success');
-            }
-        } else { showNotification('Aucune sauvegarde trouvée', 'info'); }
-    }).catch(error => { console.error('Erreur de restauration:', error); showNotification('Erreur lors de la restauration', 'error'); });
-}
-
 // ========================================
 // EXPORT/IMPORT
 // ========================================
@@ -1848,93 +1799,74 @@ function openScanModal() {
     fileInput.onchange = function(e) { const file = e.target.files[0]; if (file) processImage(file); };
 }
 function closeScanModal() { if (scanModal) scanModal.remove(); }
-function processImage(file) {
-    const preview = document.getElementById('scanPreview');
-    const reader = new FileReader();
-    reader.onload = function(e) { preview.innerHTML = `<img src="${e.target.result}" class="scan-preview" alt="Facture scannée">`; setTimeout(() => simulateOCR(), 1500); };
-    reader.readAsDataURL(file);
-}
-function simulateOCR() {
-    const detectedData = { elecAmount: Math.floor(Math.random() * 100000) + 20000, elecKwh: Math.floor(Math.random() * 200) + 50, waterAmount: Math.floor(Math.random() * 50000) + 10000, waterM3: Math.floor(Math.random() * 30) + 5 };
-    document.getElementById('detectedElec').textContent = detectedData.elecAmount.toFixed(0) + ' Ar';
-    document.getElementById('detectedKwh').textContent = detectedData.elecKwh + ' kWh';
-    document.getElementById('detectedWater').textContent = detectedData.waterAmount.toFixed(0) + ' Ar';
-    document.getElementById('detectedM3').textContent = detectedData.waterM3 + ' m³';
-    document.getElementById('scanResult').style.display = 'block';
-    window.tempScannedData = detectedData;
-}
-function applyDetectedValues() {
-    if (window.tempScannedData) {
-        document.getElementById('elecBillAmount').value = window.tempScannedData.elecAmount;
-        document.getElementById('elecConsumption').value = window.tempScannedData.elecKwh;
-        document.getElementById('waterBillAmount').value = window.tempScannedData.waterAmount;
-        document.getElementById('waterConsumption').value = window.tempScannedData.waterM3;
-        calculateActualPrices();
-        showNotification('Valeurs appliquées avec succès !', 'success');
-        closeScanModal();
-    }
-}
-
 // ========================================
 // AUTHENTIFICATION
 // ========================================
 
 function checkAuth() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) { 
-        try { currentUser = JSON.parse(savedUser); updateUIForUser(); }
+    var saved = localStorage.getItem('currentUser');
+    if (saved) {
+        try { currentUser = JSON.parse(saved); updateUIForUser(); }
         catch(e) { localStorage.removeItem('currentUser'); showLoginModal(); }
-    } else { 
-        showLoginModal(); 
+    } else {
+        showLoginModal();
     }
-    // Wire up login modal close button
-    var closeBtn = document.getElementById('closeLoginBtn');
-    if (closeBtn) closeBtn.addEventListener('click', closeLoginModal);
-    // Wire up Enter key on login inputs
+    // Wire submit button and Enter key
+    var btn = document.getElementById('submitLogin');
+    if (btn) btn.onclick = function(e) { e.preventDefault(); login(); };
     ['loginUsername','loginPassword'].forEach(function(id) {
         var el = document.getElementById(id);
-        if (el) el.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') window.login();
-        });
+        if (el) el.onkeydown = function(e) { if (e.key === 'Enter') login(); };
     });
 }
 function showLoginModal() {
     var modal = document.getElementById('loginModal');
-    if (modal) {
-        modal.style.display = 'flex';
-        // Reset to login tab
-        if (typeof switchLoginTab === 'function') switchLoginTab('login');
-        // Clear error
-        var err = document.getElementById('loginError');
-        if (err) err.style.display = 'none';
-        // Focus username
-        setTimeout(function() {
-            var u = document.getElementById('loginUsername');
-            if (u) u.focus();
-        }, 300);
-    }
+    if (!modal) return;
+    modal.style.display = 'flex';
+    var err = document.getElementById('loginError');
+    if (err) err.style.display = 'none';
+    setTimeout(function() {
+        var u = document.getElementById('loginUsername');
+        if (u) u.focus();
+    }, 150);
 }
 function login() {
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
-    
-    // Chercher par nom d'utilisateur ou par email
-    const user = users.find(u => u.username === username || u.email === username);
-    
+    var username = (document.getElementById('loginUsername').value || '').trim();
+    var password = document.getElementById('loginPassword').value || '';
+    if (!username || !password) {
+        showLoginFieldError('Veuillez remplir tous les champs');
+        return;
+    }
+    var user = users.find(function(u) {
+        return u.username === username || u.email === username;
+    });
     if (user && user.password === password) {
         currentUser = user;
         localStorage.setItem('currentUser', JSON.stringify(user));
-        document.getElementById('loginModal').style.display = 'none';
+        var modal = document.getElementById('loginModal');
+        if (modal) modal.style.display = 'none';
         updateUIForUser();
-        
-        // Filtrer les données pour l'utilisateur connecté
         if (user.role !== 'admin' && user.personId) {
             filterDataByPersonId(user.personId);
         }
-        
-        showNotification(`Bienvenue ${user.name} !`, 'success');
+        showNotification('Bienvenue ' + user.name + ' !', 'success');
     } else {
-        showNotification('Nom d\'utilisateur/email ou mot de passe incorrect', 'error');
+        showLoginFieldError('Identifiants incorrects');
+    }
+}
+
+function showLoginFieldError(msg) {
+    var el = document.getElementById('loginError');
+    var msgEl = document.getElementById('loginErrorMsg');
+    if (el) {
+        if (msgEl) msgEl.textContent = msg || 'Erreur de connexion';
+        el.style.display = 'flex';
+        el.style.animation = 'none';
+        void el.offsetHeight;
+        el.style.animation = 'shake 0.4s ease';
+        setTimeout(function() { if (el) el.style.display = 'none'; }, 4000);
+    } else {
+        showNotification(msg, 'error');
     }
 }
 
@@ -1960,40 +1892,28 @@ function filterDataByPersonId(personId) {
 function logout() {
     currentUser = null;
     localStorage.removeItem('currentUser');
-    // Reload all data fresh (not filtered by user)
     loadData();
-    updatePersonsList();
-    updateAppliancesList();
-    updateDashboard();
-    updateBilling();
+    updatePersonsList(); updateAppliancesList(); updateDashboard(); updateBilling();
+    // Remove userInfo from header
+    var ui = document.getElementById('userInfo');
+    if (ui) ui.remove();
     showLoginModal();
     showNotification('Déconnexion réussie', 'success');
 }
 function updateUIForUser() {
     if (!currentUser) return;
-    // Handle guest role
-    if (currentUser.role === 'guest') {
-        var headerStats = document.querySelector('.header-stats');
-        if (headerStats && !document.getElementById('userInfo')) {
-            var userInfo = document.createElement('div');
-            userInfo.id = 'userInfo';
-            userInfo.className = 'header-stat';
-            userInfo.innerHTML = '<i class="fas fa-user-secret"></i><div class="stat-info"><span class="stat-label">Mode</span><span class="stat-value">Invité</span></div><button onclick="logout()" style="background:none;border:none;color:white;cursor:pointer;margin-left:10px"><i class="fas fa-sign-out-alt"></i></button>';
-            headerStats.appendChild(userInfo);
-        }
-        return;
-    }
-    const headerStats = document.querySelector('.header-stats');
+    var headerStats = document.querySelector('.header-stats');
     if (headerStats && !document.getElementById('userInfo')) {
-        const userInfo = document.createElement('div');
-        userInfo.id = 'userInfo';
-        userInfo.className = 'header-stat';
-        userInfo.innerHTML = `<i class="fas fa-user-circle"></i><div class="stat-info"><span class="stat-label">${currentUser.role === 'admin' ? 'Admin' : 'Utilisateur'}</span><span class="stat-value">${escapeHtml(currentUser.name)}</span></div><button onclick="logout()" style="background: none; border: none; color: white; cursor: pointer; margin-left: 10px;"><i class="fas fa-sign-out-alt"></i></button>`;
-        headerStats.appendChild(userInfo);
+        var ui = document.createElement('div');
+        ui.id = 'userInfo'; ui.className = 'header-stat';
+        var ico = currentUser.role === 'admin' ? 'fa-shield-alt' : (currentUser.role === 'guest' ? 'fa-user-secret' : 'fa-user-circle');
+        var lbl = currentUser.role === 'admin' ? 'Admin' : (currentUser.role === 'guest' ? 'Invité' : 'Utilisateur');
+        ui.innerHTML = '<i class="fas ' + ico + '"></i><div class="stat-info"><span class="stat-label">' + lbl + '</span><span class="stat-value">' + escapeHtml(currentUser.name) + '</span></div><button onclick="logout()" style="background:none;border:none;color:white;cursor:pointer;margin-left:8px;font-size:14px"><i class="fas fa-sign-out-alt"></i></button>';
+        headerStats.appendChild(ui);
     }
+    if (currentUser.role === 'guest') return;
     if (currentUser.role !== 'admin') {
-        const adminOnlyElements = document.querySelectorAll('.admin-only');
-        adminOnlyElements.forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.admin-only').forEach(function(el) { el.style.display = 'none'; });
         filterDataForUser();
     }
 }
@@ -2146,22 +2066,21 @@ function showAccessibility() { showNotification('♿ Accessibilité : L\'applica
 function showMobileApp() { showNotification('📱 L\'application mobile sera bientôt disponible sur Play Store et App Store !', 'info'); }
 function showWebApp() { showNotification('🌐 Vous utilisez déjà la version Web App !', 'info'); }
 function showAPI() { showNotification('🔧 L\'API publique sera disponible prochainement pour les développeurs.', 'info'); }
-function showDocumentation() { showDocModal(); }
+function showDocumentation() { showNotification('📚 La documentation technique est disponible sur notre site web : docs.jirama.mg', 'info'); window.open('https://docs.jirama.mg', '_blank'); }
 function reportBug() { const bugReport = prompt("Décrivez le bug que vous avez rencontré :"); if (bugReport) { showNotification('Merci ! Votre rapport a été envoyé à notre équipe technique.', 'success'); console.log('Bug reporté:', bugReport); } }
 function suggestFeature() { const suggestion = prompt("Proposez une amélioration pour l'application :"); if (suggestion) { showNotification('Merci pour votre suggestion ! Elle sera étudiée par notre équipe.', 'success'); console.log('Suggestion:', suggestion); } }
 
 // Initialisation FAQ Accordéon - Version simplifiée (sans génération dynamique)
 function initFaqAccordion() {
     document.addEventListener('click', function(e) {
-        var q = e.target.closest('.faq-question');
+        var q = e.target.closest && e.target.closest('.faq-question');
         if (!q) return;
         e.preventDefault(); e.stopPropagation();
         var item = q.closest('.faq-item');
         if (!item) return;
         var list = item.closest('.faq-list');
-        (list ? list.querySelectorAll('.faq-item') : []).forEach(function(o) {
-            if (o !== item) o.classList.remove('active');
-        });
+        var siblings = list ? list.querySelectorAll('.faq-item') : [];
+        [].forEach.call(siblings, function(o) { if (o !== item) o.classList.remove('active'); });
         item.classList.toggle('active');
     });
 }
@@ -2361,13 +2280,60 @@ window.addWaterTranche = addWaterTranche;
 window.removeWaterTranche = removeWaterTranche;
 window.sendQuickMessage = sendQuickMessage;
 window.showDayDetails = showDayDetails;
-window.logout = logout;
+
+
+// ============================================================
+// FONCTIONS NOUVELLES
+// ============================================================
+function switchLoginTab(tab) {
+    var pL = document.getElementById('panelLogin');
+    var pG = document.getElementById('panelGuest');
+    var tL = document.getElementById('tabLogin');
+    var tG = document.getElementById('tabGuest');
+    if (pL) pL.style.display = tab === 'login' ? 'block' : 'none';
+    if (pG) pG.style.display = tab === 'guest' ? 'block' : 'none';
+    if (tL) tL.className = 'login-tab' + (tab === 'login' ? ' active' : '');
+    if (tG) tG.className = 'login-tab' + (tab === 'guest' ? ' active' : '');
+}
+function fillDemo(u, p) {
+    var ue = document.getElementById('loginUsername');
+    var pe = document.getElementById('loginPassword');
+    if (ue) { ue.value = u; }
+    if (pe) { pe.value = p; }
+}
+function toggleLoginPass() {
+    var inp = document.getElementById('loginPassword');
+    var ico = document.getElementById('eyeIcon');
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    if (ico) ico.className = inp.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+function loginAsGuest() {
+    currentUser = { id: 0, username: 'guest', role: 'guest', name: 'Invité' };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    var modal = document.getElementById('loginModal');
+    if (modal) modal.style.display = 'none';
+    updateUIForUser();
+    showNotification('Mode Invité activé', 'success');
+}
+function showDocModal() {
+    var ex = document.getElementById('docModal');
+    if (ex) { ex.style.display = 'flex'; return; }
+    var div = document.createElement('div');
+    div.id = 'docModal'; div.className = 'modal';
+    div.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+    div.innerHTML = '<div class="modal-content" style="max-width:600px"><div class="modal-header"><h3><i class="fas fa-code"></i> Documentation technique</h3><span class="close" onclick="document.getElementById(&quot;docModal&quot;).style.display=&quot;none&quot;">&times;</span></div><div class="modal-body"><h4>Architecture</h4><p>PWA 100% client-side. Service Worker pour mode hors-ligne. LocalStorage + IndexedDB pour les données.</p><h4>Calcul des charges</h4><p>kWh = Puissance (W) × heures/jour × jours/mois &divide; 1000. Répartition par coefficient de présence.</p><h4>Fichiers principaux</h4><p>index.html · style.css · script.js · database.js · cloud-storage.js · worker.js · sw.js</p><h4>Compatibilité</h4><p>Chrome 88+, Firefox 85+, Safari 14+, Edge 88+.</p></div></div>';
+    div.addEventListener('click', function(e) { if (e.target === div) div.style.display = 'none'; });
+    document.body.appendChild(div);
+}
 window.switchLoginTab = switchLoginTab;
 window.fillDemo = fillDemo;
-window.loginAsGuest = loginAsGuest;
 window.toggleLoginPass = toggleLoginPass;
+window.loginAsGuest = loginAsGuest;
 window.showDocModal = showDocModal;
-window.showLoginError = showLoginError;
+window.login = login;
+window.logout = logout;
+window.showLoginFieldError = showLoginFieldError;
 
 // Initialisation principale
 document.addEventListener('DOMContentLoaded', () => {
@@ -2385,7 +2351,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initConsumptionPreview();
     initEmailJS();
     initGoogleAPI();
-    // initTheme() supprimée — non définie
+    // initTheme removed
     updateEmailList();
     initOfflineMode();
     initVirtualAccounts();
@@ -2410,14 +2376,11 @@ window.onclick = function(event) {
     const scanModalEl = document.getElementById('scanModal');
     const guestModalEl = document.getElementById('guestModal');
     const balanceModalEl = document.getElementById('balanceModal');
-    const docModalEl = document.getElementById('docModal');
-    const loginModalEl = document.getElementById('loginModal');
     if (event.target === personModal) closePersonModal();
     if (event.target === applianceModal) closeApplianceModal();
     if (event.target === budgetModal) closeBudgetModal();
     if (event.target === guideModal) closeGuideModal();
     if (event.target === supportModal) closeSupportModal();
-    if (docModalEl && event.target === docModalEl) docModalEl.style.display = 'none';
     if (event.target === tarifsModal) closeTarifsModal();
     if (event.target === faqModal) closeFAQModal();
     if (event.target === scanModalEl && scanModalEl) closeScanModal();
@@ -2591,13 +2554,7 @@ function updateTrendsDisplay(data) {
 // LAZY LOADING
 // ========================================
 
-const lazyModules = {
-    budget: { loaded: false, load: () => import('./modules/budget.js') },
-    excel: { loaded: false, load: () => import('./modules/excelExport.js') },
-    scan: { loaded: false, load: () => import('./modules/scan.js') },
-    advancedCharts: { loaded: false, load: () => import('./modules/advancedCharts.js') },
-    reports: { loaded: false, load: () => import('./modules/reports.js') }
-};
+const lazyModules = {};  // modules non utilisés
 
 const loadedModules = {};
 
@@ -2854,7 +2811,7 @@ function initSettingsAccordion() {
     var first = document.querySelector('.settings-accordion-item');
     if (first) first.classList.add('active');
     document.addEventListener('click', function(e) {
-        var h = e.target.closest('.settings-accordion-header');
+        var h = e.target.closest && e.target.closest('.settings-accordion-header');
         if (!h) return;
         var item = h.closest('.settings-accordion-item');
         if (!item) return;
@@ -3130,99 +3087,3 @@ function enhanceSpecificMobileButtons() {
 }
 
 // SOLUTION SIMPLE POUR LE BOUTON DE CONNEXION MOBILE
-
-
-// ============================================================
-// FONCTIONS AJOUTÉES / CORRIGÉES
-// ============================================================
-
-// Login tab switch
-function switchLoginTab(tab) {
-    document.getElementById('panelLogin').style.display = tab === 'login' ? 'block' : 'none';
-    document.getElementById('panelGuest').style.display = tab === 'guest' ? 'block' : 'none';
-    document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
-    document.getElementById('tabGuest').classList.toggle('active', tab === 'guest');
-}
-
-// Fill demo credentials
-function fillDemo(u, p) {
-    document.getElementById('loginUsername').value = u;
-    document.getElementById('loginPassword').value = p;
-    document.getElementById('loginUsername').focus();
-}
-
-// Toggle password visibility
-function toggleLoginPass() {
-    var inp = document.getElementById('loginPassword');
-    var icon = document.getElementById('eyeIcon');
-    if (inp.type === 'password') {
-        inp.type = 'text';
-        icon.className = 'fas fa-eye-slash';
-    } else {
-        inp.type = 'password';
-        icon.className = 'fas fa-eye';
-    }
-}
-
-// Guest login
-function loginAsGuest() {
-    currentUser = { id: 0, username: 'guest', role: 'guest', name: 'Invité' };
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    var modal = document.getElementById('loginModal');
-    if (modal) modal.style.display = 'none';
-    updateUIForUser();
-    showNotification('Bienvenue en mode Invité !', 'success');
-}
-
-// Show login error
-function showLoginError(msg) {
-    var el = document.getElementById('loginError');
-    var msgEl = document.getElementById('loginErrorMsg');
-    if (el) { el.style.display = 'flex'; if (msgEl) msgEl.textContent = msg || 'Identifiants incorrects'; }
-    setTimeout(function() { if (el) el.style.display = 'none'; }, 4000);
-}
-
-// Override login to show error properly
-var _origLogin = login;
-window.login = function() {
-    var username = document.getElementById('loginUsername').value;
-    var password = document.getElementById('loginPassword').value;
-    var user = users.find(function(u) { return u.username === username || u.email === username; });
-    if (user && user.password === password) {
-        currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        document.getElementById('loginModal').style.display = 'none';
-        updateUIForUser();
-        if (user.role !== 'admin' && user.personId) filterDataByPersonId(user.personId);
-        showNotification('Bienvenue ' + user.name + ' !', 'success');
-    } else {
-        showLoginError('Nom d\'utilisateur ou mot de passe incorrect');
-    }
-};
-
-// Technical documentation modal
-function showDocModal() {
-    var existing = document.getElementById('docModal');
-    if (existing) { existing.style.display = 'block'; return; }
-    var html = '<div id="docModal" class="modal"><div class="modal-content guide-modal-content"><div class="modal-header"><h3><i class="fas fa-code"></i> Documentation technique</h3><span class="close" onclick="document.getElementById('docModal').style.display='none'">&times;</span></div><div class="modal-body guide-body">' +
-        '<p class="guide-intro">Architecture et fonctionnement interne de JIRAMA Charge Manager v3.0</p>' +
-        '<div class="guide-steps">' +
-        '<div class="guide-step"><div class="step-number"><i class="fas fa-layer-group" style="font-size:12px"></i></div><div class="step-content"><h4>Architecture</h4><p>Application <strong>PWA</strong> (Progressive Web App) 100% client-side. Aucun serveur requis. Fonctionne hors-ligne grâce au Service Worker. Données stockées dans <em>localStorage</em> et <em>IndexedDB</em>.</p></div></div>' +
-        '<div class="guide-step"><div class="step-number"><i class="fas fa-database" style="font-size:12px"></i></div><div class="step-content"><h4>Stockage des données</h4><p><strong>localStorage</strong> : paramètres, session utilisateur, cache rapide.<br><strong>IndexedDB</strong> (database.js) : colocataires, appareils, historique, dépenses communes.<br><strong>Google Drive</strong> : sauvegarde cloud optionnelle via OAuth2.</p></div></div>' +
-        '<div class="guide-step"><div class="step-number"><i class="fas fa-calculator" style="font-size:12px"></i></div><div class="step-content"><h4>Calcul des charges</h4><p>Formule : <em>Consommation (kWh) = Puissance (W) × Heures/jour × Jours/mois ÷ 1000</em><br>Répartition selon coefficient de présence. Support des tranches tarifaires progressives JIRAMA.</p></div></div>' +
-        '<div class="guide-step"><div class="step-number"><i class="fas fa-cogs" style="font-size:12px"></i></div><div class="step-content"><h4>Fichiers principaux</h4><p><strong>index.html</strong> : structure UI<br><strong>style.css</strong> : design et animations<br><strong>script.js</strong> : logique métier principale<br><strong>database.js</strong> : couche IndexedDB<br><strong>cloud-storage.js</strong> : intégration Google Drive<br><strong>worker.js</strong> : calculs asynchrones<br><strong>sw.js</strong> : Service Worker PWA</p></div></div>' +
-        '<div class="guide-step"><div class="step-number"><i class="fas fa-shield-alt" style="font-size:12px"></i></div><div class="step-content"><h4>Sécurité</h4><p>Authentification locale par username/password. Pas de transmission de données sensibles vers des serveurs tiers. Sauvegarde cloud uniquement vers le Drive Google de l'utilisateur authentifié.</p></div></div>' +
-        '<div class="guide-step"><div class="step-number"><i class="fas fa-mobile-alt" style="font-size:12px"></i></div><div class="step-content"><h4>Compatibilité</h4><p>Navigateurs modernes : Chrome 88+, Firefox 85+, Safari 14+, Edge 88+.<br>Responsive : desktop, tablette, smartphone.<br>Installable comme app native via le menu du navigateur.</p></div></div>' +
-        '</div></div></div></div>';
-    document.body.insertAdjacentHTML('beforeend', html);
-    document.getElementById('docModal').style.display = 'block';
-}
-window.showDocModal = showDocModal;
-window.switchLoginTab = switchLoginTab;
-window.fillDemo = fillDemo;
-window.toggleLoginPass = toggleLoginPass;
-window.loginAsGuest = loginAsGuest;
-window.showLoginError = showLoginError;
-
-// Login button init moved to checkAuth()
-

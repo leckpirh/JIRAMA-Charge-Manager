@@ -5561,13 +5561,10 @@ a:not(.social-link):not(.footer-links a):hover {
 /* LOGIN MODAL — DESIGN EXCLUSIF                               */
 /* ============================================================ */
 .login-modal-overlay {
-    display: flex !important;
     align-items: center;
     justify-content: center;
     padding: 20px;
 }
-.login-modal-overlay.modal { display: none; }
-.login-modal-overlay.modal[style*="block"] { display: flex !important; }
 
 .login-modal-card {
     background: linear-gradient(150deg, #0d1635 0%, #131c40 50%, #0a1228 100%);
